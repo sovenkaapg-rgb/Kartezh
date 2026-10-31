@@ -6,7 +6,6 @@ const deckGrid = document.getElementById('deck-grid');
 const deckCountElement = document.getElementById('deck-count');
 const botSpeech = document.getElementById('bot-speech');
 
-// БАЗА ЖУТКИХ ФРАЗ БОТА
 const BOT_PHRASES = {
     welcome_cooldown: [
         "Время еще не пришло... Возвращайся позже, смертный.",
@@ -26,18 +25,23 @@ const BOT_PHRASES = {
     buy_hour: "⏳ Ты готов платить золотом за ускорение времени? Забавно..."
 };
 
-// БАЗА КАРТ И ИНВЕНТАРЬ
 let ALL_GAME_CARDS = []; 
+let userInventory = {}; 
+let lastAwardedCard = null; 
 
-// Маппинг цветов рамок в зависимости от редкости из вашей базы
 const RARITY_COLORS = {
     "обыч": "#888888",
     "редкая": "#3498db",
     "лега": "#e67e22"
 };
 
-let userInventory = {}; 
-let lastAwardedCard = null; 
+// СТРОГИЕ ВЕСА ИЗ ТГ БОТА
+const RARITY_CHANCES = { 'обыч': 0.799, 'редкая': 0.20, 'лега': 0.001 };
+const RARITY_BY_AFFINITY = [
+    { threshold: 70, weights: { 'обыч': 0.694, 'редкая': 0.295, 'лега': 0.011 } },
+    { threshold: 31, weights: { 'обыч': 0.749, 'редкая': 0.245, 'лега': 0.006 } },
+    { threshold: 0, weights: RARITY_CHANCES }
+];
 
 function changeBotSpeech(text) {
     if (botSpeech) botSpeech.innerText = text;
@@ -60,55 +64,105 @@ function updateCardsAvailability() {
     }
 }
 
+// ВЫЧИСЛЕНИЕ РЕДКОСТИ ПО ЛОЯЛЬНОСТИ (КАК В БОТЕ)
+function getWeightedRarity(affinity) {
+    let activeWeights = RARITY_CHANCES;
+    for (const level of RARITY_BY_AFFINITY) {
+        if (affinity >= level.threshold) {
+            activeWeights = level.weights;
+            break;
+        }
+    }
+    const rand = Math.random();
+    let cumulative = 0;
+    for (const [rarity, chance] of Object.entries(activeWeights)) {
+        cumulative += chance;
+        if (rand <= cumulative) return rarity;
+    }
+    return 'обыч';
+}
+
+// ИЛЛЮЗИЯ ВЫБОРА: 3 карты на экране
 function initCards() {
     if (!cardsZone || ALL_GAME_CARDS.length === 0) return;
     cardsZone.innerHTML = ''; 
     
+    // 1. Сервер/алгоритм определяет ДРОП заранее на основе лояльности игрока
+    const targetRarity = getWeightedRarity(playerAffinity);
+    const poolOfTargetRarity = ALL_GAME_CARDS.filter(c => c.rarity === targetRarity);
+    const finalWinningCard = poolOfTargetRarity.length > 0 
+        ? poolOfTargetRarity[Math.floor(Math.random() * poolOfTargetRarity.length)]
+        : ALL_GAME_CARDS[Math.floor(Math.random() * ALL_GAME_CARDS.length)];
+
+    // 2. Генерируем 3 карты, но "победа" привяжется к той, на которую нажмут
     for (let i = 0; i < 3; i++) {
         const cardContainer = document.createElement('div');
         cardContainer.className = 'card-container';
         cardContainer.style.animationDelay = `${i * 0.15}s`;
+        cardContainer.dataset.index = i;
         
-        const randomCard = ALL_GAME_CARDS[Math.floor(Math.random() * ALL_GAME_CARDS.length)];
-        const cardColor = RARITY_COLORS[randomCard.rarity] || "#888";
-        
+        // Рубашка
         cardContainer.innerHTML = `
             <div class="card-inner">
                 <div class="card-front"></div>
-                <div class="card-back" style="border-color: ${cardColor}">
-                    <img src="${randomCard.image_url}" class="card-image-bg" alt="${randomCard.title}">
+                <div class="card-back">
+                    <img src="" class="card-image-bg">
                     <div class="card-content">
-                        <div class="card-title">${randomCard.title}</div>
-                        <div class="card-rarity" style="color: ${cardColor}">${randomCard.rarity.toUpperCase()}</div>
+                        <div class="card-title"></div>
+                        <div class="card-rarity"></div>
                     </div>
                 </div>
             </div>
         `;
         
         cardContainer.addEventListener('click', () => {
-            lastAwardedCard = randomCard; 
-            revealCard(cardContainer);
+            // В момент клика присваиваем нажатой карте наш выигрыш, а остальным — пустышки
+            lastAwardedCard = finalWinningCard;
+            revealAllCardsWithIllusion(cardContainer, finalWinningCard);
         });
         cardsZone.appendChild(cardContainer);
     }
 }
 
-function revealCard(selectedCard) {
-    selectedCard.classList.add('flipped');
+function revealAllCardsWithIllusion(selectedCard, winningCard) {
     const allCards = document.querySelectorAll('.game-field .card-container');
+    
     allCards.forEach(card => {
         card.style.pointerEvents = 'none';
-        if (card !== selectedCard) card.classList.add('card-leave-right');
+        const cardBack = card.querySelector('.card-back');
+        const img = card.querySelector('.card-image-bg');
+        const title = card.querySelector('.card-title');
+        const rarityDiv = card.querySelector('.card-rarity');
+        
+        let currentCardData;
+        if (card === selectedCard) {
+            currentCardData = winningCard; // Выбранная всегда выигрывает!
+            card.classList.add('flipped');
+        } else {
+            // Другие карты показывают просто случайный хлам из базы для иллюзии
+            currentCardData = ALL_GAME_CARDS[Math.floor(Math.random() * ALL_GAME_CARDS.length)];
+            setTimeout(() => { card.classList.add('flipped', 'card-leave-right'); }, 200);
+        }
+        
+        const cardColor = RARITY_COLORS[currentCardData.rarity] || "#888";
+        cardBack.style.borderColor = cardColor;
+        img.src = currentCardData.image_url;
+        img.alt = currentCardData.title;
+        title.innerText = currentCardData.title;
+        rarityDiv.innerText = currentCardData.rarity.toUpperCase();
+        rarityDiv.style.color = cardColor;
     });
 
-    const isDuplicate = userInventory[lastAwardedCard.id] > 0;
+    // Реплика бота
+    const isDuplicate = userInventory[winningCard.id] > 0;
     if (isDuplicate) changeBotSpeech(BOT_PHRASES.drop_duplicate);
     else {
-        if (lastAwardedCard.rarity === "лега") changeBotSpeech(BOT_PHRASES.drop_legendary);
-        else if (lastAwardedCard.rarity === "редкая") changeBotSpeech(BOT_PHRASES.drop_rare);
+        if (winningCard.rarity === "лега") changeBotSpeech(BOT_PHRASES.drop_legendary);
+        else if (winningCard.rarity === "редкая") changeBotSpeech(BOT_PHRASES.drop_rare);
         else changeBotSpeech(BOT_PHRASES.drop_normal);
     }
 
+    // Открытие модального окна сохранения
     setTimeout(() => {
         const clonedCard = selectedCard.cloneNode(true);
         clonedCard.classList.remove('flipped');
@@ -117,44 +171,49 @@ function revealCard(selectedCard) {
         modalInside.appendChild(clonedCard);
         cardModal.style.display = 'flex';
         setTimeout(() => { cardModal.style.opacity = '1'; }, 10);
-    }, 700);
+    }, 900);
 }
 
+// ЕДИНАЯ ОЧИЩЕННАЯ ФУНКЦИЯ ЗАКРЫТИЯ МОДАЛКИ С СОХРАНЕНИЕМ
 function closeModal() {
     if (lastAwardedCard) {
         const id = lastAwardedCard.id;
         userInventory[id] = (userInventory[id] || 0) + 1;
-        playerAffinity = Math.min(100, playerAffinity + 2);
-        if (typeof updateAffinityUI === 'function') updateAffinityUI();
+        
+        // В мини-приложении за отправку карт лояльность НЕ начисляется и НЕ отнимается (как в боте)
+        if (typeof sendNewCardToServer === 'function') {
+            sendNewCardToServer(id, lastAwardedCard.title, lastAwardedCard.rarity);
+        }
         if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
     }
     cardModal.style.opacity = '0';
     setTimeout(() => {
         cardModal.style.display = 'none';
-        cooldownSeconds = 4 * 3600; 
+        cooldownSeconds = 4 * 3600; // Сброс КД на 4 часа после успешного забора карты
+        
+        // Перезапускаем кулдаун на сервере через синхронизацию ресурсов
+        if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
         if (typeof startTimer === 'function') startTimer();
     }, 400);
 }
 
+// СЖИГАНИЕ КАРТЫ (Лояльность больше не уменьшается, синхронизировано с ботом)
 function burnAwardedCard() {
     const cardToBurn = modalInside.querySelector('.card-container');
     if (cardToBurn) cardToBurn.classList.add('card-burn-animation');
     changeBotSpeech(BOT_PHRASES.burn_card);
 
-    playerAffinity = Math.max(0, playerAffinity - 5);
-    if (typeof updateAffinityUI === 'function') updateAffinityUI();
-
     setTimeout(() => {
-        const scrapValue = lastAwardedCard ? (lastAwardedCard.point_value || 10) : 15;
+        const scrapValue = lastAwardedCard ? (lastAwardedCard.point_value || 10) : 10;
         playerCoins += scrapValue;
         if (coinCountElement) coinCountElement.innerText = playerCoins;
         lastAwardedCard = null; 
-        if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
         
         cardModal.style.opacity = '0';
         setTimeout(() => {
             cardModal.style.display = 'none';
             cooldownSeconds = 4 * 3600; 
+            if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
             if (typeof startTimer === 'function') startTimer();
         }, 400);
     }, 750);
@@ -187,7 +246,7 @@ function openDeck() {
             ${count > 1 ? `<div class="card-badge">x${count}</div>` : ''}
         `;
         
-        if (count > 0) {
+                if (count > 0) {
             cardWrapper.addEventListener('click', () => { previewCardFromDeck(card); });
         }
         deckGrid.appendChild(cardWrapper);
@@ -232,9 +291,7 @@ function previewCardFromDeck(card) {
         if (cardToBurn) cardToBurn.classList.add('card-burn-animation');
         changeBotSpeech(BOT_PHRASES.burn_card);
 
-        playerAffinity = Math.max(0, playerAffinity - 4);
-        if (typeof updateAffinityUI === 'function') updateAffinityUI();
-
+        // Лояльность при сжигании в деке больше не падает! (Синхронизировано с ботом)
         setTimeout(() => {
             userInventory[card.id]--;
             if (userInventory[card.id] === 0) delete userInventory[card.id];
@@ -270,59 +327,3 @@ function closeDeck() {
     setTimeout(() => { deckScreen.style.display = 'none'; }, 300);
 }
 
-// ОБНОВЛЕННАЯ БАЗА ОПРОСОВ ПОД ФОРМАТ ДА/НЕТ
-const SAMPLE_QUIZZES = [
-    {
-        id: 101,
-        question: "🔮 Бот: Слышишь этот шепот во тьме? Ты готов ответить ему взаимностью?",
-        options: [
-            { text: "Да", affinityChange: 5, reply: "Правильный выбор... Бездна любит взаимность." },
-            { text: "Нет", affinityChange: -4, reply: "Твой жалкий свет лишь раздражает меня..." }
-        ]
-    },
-    {
-        id: 102,
-        question: "🔮 Бот: Как думаешь, магия крови и обмана разума — это истинная сила?",
-        options: [
-            { text: "Да", affinityChange: 6, reply: "О да... Настоящая сила требует сочной платы." },
-            { text: "Нет", affinityChange: -5, reply: "Слабость... Какая глупость верить в мораль смертных." }
-        ]
-    }
-];
-
-function triggerRandomQuiz() {
-    const optionsZone = document.getElementById('quiz-options-zone');
-    if (!optionsZone) return;
-
-    const randomQuiz = SAMPLE_QUIZZES[Math.floor(Math.random() * SAMPLE_QUIZZES.length)];
-    
-    changeBotSpeech(randomQuiz.question);
-    
-    optionsZone.innerHTML = ''; 
-    optionsZone.style.display = 'flex'; 
-
-    randomQuiz.options.forEach(option => {
-        const btn = document.createElement('button');
-        btn.className = 'btn-quiz-inline';
-        btn.innerText = option.text;
-        
-        btn.onclick = function() {
-            playerAffinity = Math.max(0, Math.min(100, playerAffinity + option.affinityChange));
-            if (typeof updateAffinityUI === 'function') updateAffinityUI();
-            
-            changeBotSpeech(option.reply);
-            optionsZone.style.display = 'none'; 
-            if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
-        };
-        optionsZone.appendChild(btn);
-    });
-
-    const skipBtn = document.createElement('button');
-    skipBtn.className = 'btn-quiz-inline btn-quiz-skip';
-    skipBtn.innerText = "✕";
-    skipBtn.onclick = function() {
-        changeBotSpeech("Игнорируешь меня? Что ж... как угодно.");
-        optionsZone.style.display = 'none'; 
-    };
-    optionsZone.appendChild(skipBtn);
-}

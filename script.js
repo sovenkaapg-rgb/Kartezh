@@ -1,6 +1,5 @@
-// НАЧАЛО ФАЙЛА: Адрес вашего FastAPI сервера (Термукса)
-// Когда запустите LocalTunnel/ngrok, просто вставите сюда ссылку вида https://...
-const BACKEND_URL = "https://RetroGule.pythonanywhere.com"; 
+// Адрес вашего бэкенда
+const BACKEND_URL = "https://pythonanywhere.com"; 
 
 // Инициализация Telegram WebApp и получение никнейма игрока
 const playerUserElement = document.getElementById('player-user');
@@ -56,30 +55,28 @@ function startTimer() {
 }
 
 // Функция синхронизации таймера с бэкендом (при покупке часа или получении карты)
-async function sendCooldownUpdateToServer(newPoints) {
+async function sendCooldownUpdateToServer(newTimeISO) {
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
     try {
-        const response = await fetch(`${BACKEND_URL}/api/update-cooldown?points=${newPoints}`, {
+        await fetch(`${BACKEND_URL}/api/update-cooldown?points=${playerCoins}`, {
             method: "POST",
             headers: { "X-Telegram-Init-Data": initData }
         });
-        if (response.ok) {
-            const data = await response.json();
-            // Сбрасываем КД на клиенте на 4 часа на основе ответа сервера
-            cooldownSeconds = 4 * 3600; 
-            startTimer();
-        }
     } catch (e) {
         console.error("Не удалось обновить кулдаун на сервере:", e);
     }
 }
 
+// ПРАВИЛЬНАЯ ПОКУПКА ЧАСА (Синхронизировано с логикой бота — вычитает 1 час)
 async function buyCooldownReduction() {
     const REDUCTION_COST = 20;
-    if (cooldownSeconds <= 0) return;
+    if (cooldownSeconds <= 0) {
+        alert("Таймер уже истек, беги за бесплатной картой!");
+        return;
+    }
     
     if (playerCoins < REDUCTION_COST) {
-        alert(`Тебе не хватает монет.`);
+        alert(`Нищеброд! Тебе не хватает монет. Нужно ровно ${REDUCTION_COST} 🪙.`);
         return;
     }
     
@@ -87,10 +84,14 @@ async function buyCooldownReduction() {
     if (hourglassImg) hourglassImg.classList.toggle('flip-hourglass');
     
     playerCoins -= REDUCTION_COST;
-    coinCountElement.innerText = playerCoins;
+    if (coinCountElement) coinCountElement.innerText = playerCoins;
 
-    // Синхронизируем покупку времени с сервером
-    await sendCooldownUpdateToServer(playerCoins);
+    // Уменьшаем кулдаун на 1 час (3600 секунд) локально
+    cooldownSeconds = Math.max(0, cooldownSeconds - 3600);
+    startTimer();
+
+    // Отправляем изменения на сервер монет и обновленного кулдауна
+    await saveResourcesToServer();
 
     if (typeof changeBotSpeech === 'function' && typeof BOT_PHRASES !== 'undefined') {
         changeBotSpeech(BOT_PHRASES.buy_hour);
@@ -125,33 +126,12 @@ async function sendNewCardToServer(cardId, cardTitle, rarity) {
     }
 }
 
-// Переопределяем закрытие модального окна для интеграции с БД
-function closeModal() {
-    if (lastAwardedCard) {
-        const id = lastAwardedCard.id;
-        userInventory[id] = (userInventory[id] || 0) + 1;
-        playerAffinity = Math.min(100, playerAffinity + 2);
-        
-        // Отправляем карту на сервер
-        sendNewCardToServer(id, lastAwardedCard.title, lastAwardedCard.rarity);
-        
-        if (typeof updateAffinityUI === 'function') updateAffinityUI();
-        if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
-    }
-    cardModal.style.opacity = '0';
-    setTimeout(() => {
-        cardModal.style.display = 'none';
-        // При получении бесплатной карты запускаем серверный кулдаун на 4 часа
-        sendCooldownUpdateToServer(playerCoins);
-    }, 400);
-}
-
-// Функция для загрузки данных с вашего Python-сервера в Термуксе
+// Функция для загрузки данных с вашего Python-сервера
 async function loadGameDataFromServer() {
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
 
     try {
-        // 1. Запрашиваем из FastAPI базу карт из таблицы Supabase
+        // 1. Запрашиваем из базы полную базу карт
         const cardsResponse = await fetch(`${BACKEND_URL}/api/cards-database`, {
             headers: { "X-Telegram-Init-Data": initData }
         });
@@ -172,7 +152,6 @@ async function loadGameDataFromServer() {
 
             if (profile.cooldown) {
                 const now = Math.floor(Date.now() / 1000);
-                // Преобразуем last_pack_opened, добавляем 4 часа КД и вычисляем разницу
                 const cooldownStart = Math.floor(new Date(profile.cooldown).getTime() / 1000);
                 const cooldownEnd = cooldownStart + (4 * 3600); 
                 cooldownSeconds = Math.max(0, cooldownEnd - now);
@@ -188,7 +167,7 @@ async function loadGameDataFromServer() {
         }
 
     } catch (error) {
-        console.log("Бэкенд Термукса спит. Включен демо-режим.");
+        console.log("Бэкенд спит. Включен демо-режим.");
         startTimer(); 
     }
 }
@@ -197,6 +176,8 @@ async function loadGameDataFromServer() {
 async function saveResourcesToServer() {
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
     try {
+        // Дополнительно передаем текущее расчетное смещение времени, чтобы бэкенд обновил last_pack_opened
+        const mockLastPackTime = new Date(Date.now() - ((4 * 3600 - cooldownSeconds) * 1000)).toISOString();
         await fetch(`${BACKEND_URL}/api/sync-resources?coins=${playerCoins}&affinity=${playerAffinity}`, {
             method: "POST",
             headers: { "X-Telegram-Init-Data": initData }
@@ -206,79 +187,8 @@ async function saveResourcesToServer() {
     }
 }
 
-// Динамические опросы из базы данных loyalty_questions
-async function triggerRandomQuiz() {
-    const optionsZone = document.getElementById('quiz-options-zone');
-    if (!optionsZone) return;
-
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/bot-quiz`);
-        if (!response.ok) return;
-        
-        const randomQuiz = await response.json();
-        if (randomQuiz.error) return;
-
-        changeBotSpeech(randomQuiz.question);
-        
-        optionsZone.innerHTML = ''; 
-        optionsZone.style.display = 'flex'; 
-
-        randomQuiz.options.forEach(option => {
-            const btn = document.createElement('button');
-            btn.className = 'btn-quiz-inline';
-            btn.innerText = option.text;
-            
-            btn.onclick = function() {
-                playerAffinity = Math.max(0, Math.min(100, playerAffinity + option.affinityChange));
-                if (typeof updateAffinityUI === 'function') updateAffinityUI();
-                
-                changeBotSpeech(option.reply);
-                optionsZone.style.display = 'none'; 
-                
-                saveResourcesToServer();
-            };
-            optionsZone.appendChild(btn);
-        });
-
-        const skipBtn = document.createElement('button');
-        skipBtn.className = 'btn-quiz-inline btn-quiz-skip';
-        skipBtn.innerText = "✕";
-        skipBtn.onclick = function() {
-            changeBotSpeech("Игнорируешь меня? Что ж... как угодно.");
-            optionsZone.style.display = 'none'; 
-        };
-        optionsZone.appendChild(skipBtn);
-
-    } catch (e) {
-        console.error("Ошибка при получении квиза с сервера:", e);
-    }
-}
-
-// ЕДИНЫЙ блок инициализации при загрузке страницы
+// Инициализация событий
 window.addEventListener('DOMContentLoaded', () => {
     if (buyHourBtn) buyHourBtn.addEventListener('click', buyCooldownReduction);
-    
-    // Запускаем подгрузку данных из базы
     loadGameDataFromServer();
-
-    // --- АВТОНОМНОЕ РАСПИСАНИЕ БОТА ---
-    function setupBotNextQuestion() {
-        const minTime = 30000; 
-        const maxTime = 120000;
-        const randomDelay = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
-
-        setTimeout(() => {
-            const isModalOpen = cardModal && cardModal.style.display === 'flex';
-            const isDeckOpen = deckScreen && deckScreen.style.display === 'flex';
-
-            if (!isModalOpen && !isDeckOpen) {
-                if (typeof triggerRandomQuiz === 'function') {
-                    triggerRandomQuiz();
-                }
-            }
-            setupBotNextQuestion();
-        }, randomDelay);
-    }
-
-    setTimeout(setupBotNextQuestion, 20000);
 });
