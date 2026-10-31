@@ -1,5 +1,5 @@
 // Адрес вашего бэкенда
-const BACKEND_URL = "https://pythonanywhere.com"; 
+const BACKEND_URL = "https://retrogule.pythonanywhere.com/"; 
 
 // Инициализация Telegram WebApp и получение никнейма игрока
 const playerUserElement = document.getElementById('player-user');
