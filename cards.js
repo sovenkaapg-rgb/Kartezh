@@ -27,52 +27,7 @@ const BOT_PHRASES = {
 };
 
 // БАЗА КАРТ И ИНВЕНТАРЬ
-// Переменная, куда бэкенд при загрузке запишет ВСЮ базу карт из Supabase
-// Тестовая база с вашими реальными картами для проверки вёрстки в Phoenix Editor
-let ALL_GAME_CARDS = [
-    { 
-        id: 1, 
-        title: "Сеня с курочкой", 
-        rarity: "обыч", 
-        image_url: "https://supabase.co", 
-        point_value: 10 
-    },
-    { 
-        id: 2, 
-        title: "Стул", 
-        rarity: "обыч", 
-        image_url: "https://supabase.co", 
-        point_value: 10 
-    },
-    { 
-        id: 3, 
-        title: "Хронос", 
-        rarity: "обыч", 
-        image_url: "https://supabase.co", 
-        point_value: 10 
-    },
-    { 
-        id: 4, 
-        title: "У самовара", 
-        rarity: "редкая", 
-        image_url: "https://supabase.co", 
-        point_value: 70 
-    },
-    { 
-        id: 5, 
-        title: "Война и мир", 
-        rarity: "редкая", 
-        image_url: "https://supabase.co", 
-        point_value: 70 
-    },
-    { 
-        id: 6, 
-        title: "Декса", 
-        rarity: "лега", 
-        image_url: "https://supabase.co", 
-        point_value: 150 
-    }
-];
+let ALL_GAME_CARDS = []; 
 
 // Маппинг цветов рамок в зависимости от редкости из вашей базы
 const RARITY_COLORS = {
@@ -80,43 +35,6 @@ const RARITY_COLORS = {
     "редкая": "#3498db",
     "лега": "#e67e22"
 };
-
-function initCards() {
-    if (!cardsZone || ALL_GAME_CARDS.length === 0) return;
-    cardsZone.innerHTML = ''; 
-    
-    for (let i = 0; i < 3; i++) {
-        const cardContainer = document.createElement('div');
-        cardContainer.className = 'card-container';
-        cardContainer.style.animationDelay = `${i * 0.15}s`;
-        
-        // В будущем сервер сам вернет 3 конкретных ID. Пока для теста выбираем из загруженной базы Supabase
-        const randomCard = ALL_GAME_CARDS[Math.floor(Math.random() * ALL_GAME_CARDS.length)];
-        const cardColor = RARITY_COLORS[randomCard.rarity] || "#888";
-        
-        // Генерируем карту со слоем тегов под вашу реальную таблицу!
-        cardContainer.innerHTML = `
-            <div class="card-inner">
-                <div class="card-front"></div>
-                <div class="card-back" style="border-color: ${cardColor}">
-                    <!-- Тег картинки подтягивает URL из Supabase -->
-                    <img src="${randomCard.image_url}" class="card-image-bg" alt="${randomCard.title}">
-                    <div class="card-content">
-                        <div class="card-title">${randomCard.title}</div>
-                        <div class="card-rarity" style="color: ${cardColor}">${randomCard.rarity.toUpperCase()}</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        cardContainer.addEventListener('click', () => {
-            lastAwardedCard = randomCard; 
-            revealCard(cardContainer);
-        });
-        cardsZone.appendChild(cardContainer);
-    }
-}
-
 
 let userInventory = {}; 
 let lastAwardedCard = null; 
@@ -143,7 +61,7 @@ function updateCardsAvailability() {
 }
 
 function initCards() {
-    if (!cardsZone) return;
+    if (!cardsZone || ALL_GAME_CARDS.length === 0) return;
     cardsZone.innerHTML = ''; 
     
     for (let i = 0; i < 3; i++) {
@@ -152,15 +70,16 @@ function initCards() {
         cardContainer.style.animationDelay = `${i * 0.15}s`;
         
         const randomCard = ALL_GAME_CARDS[Math.floor(Math.random() * ALL_GAME_CARDS.length)];
+        const cardColor = RARITY_COLORS[randomCard.rarity] || "#888";
         
         cardContainer.innerHTML = `
             <div class="card-inner">
                 <div class="card-front"></div>
-                <div class="card-back" style="border-color: ${randomCard.color}">
+                <div class="card-back" style="border-color: ${cardColor}">
+                    <img src="${randomCard.image_url}" class="card-image-bg" alt="${randomCard.title}">
                     <div class="card-content">
-                        <span class="card-emoji">${randomCard.emoji}</span>
                         <div class="card-title">${randomCard.title}</div>
-                        <div class="card-rarity" style="color: ${randomCard.color}">${randomCard.rarity.toUpperCase()}</div>
+                        <div class="card-rarity" style="color: ${cardColor}">${randomCard.rarity.toUpperCase()}</div>
                     </div>
                 </div>
             </div>
@@ -207,6 +126,7 @@ function closeModal() {
         userInventory[id] = (userInventory[id] || 0) + 1;
         playerAffinity = Math.min(100, playerAffinity + 2);
         if (typeof updateAffinityUI === 'function') updateAffinityUI();
+        if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
     }
     cardModal.style.opacity = '0';
     setTimeout(() => {
@@ -225,9 +145,12 @@ function burnAwardedCard() {
     if (typeof updateAffinityUI === 'function') updateAffinityUI();
 
     setTimeout(() => {
-        playerCoins += 15;
+        const scrapValue = lastAwardedCard ? (lastAwardedCard.point_value || 10) : 15;
+        playerCoins += scrapValue;
         if (coinCountElement) coinCountElement.innerText = playerCoins;
         lastAwardedCard = null; 
+        if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
+        
         cardModal.style.opacity = '0';
         setTimeout(() => {
             cardModal.style.display = 'none';
@@ -246,17 +169,18 @@ function openDeck() {
         const count = userInventory[card.id] || 0;
         const cardWrapper = document.createElement('div');
         cardWrapper.className = `card-container ${count === 0 ? 'card-locked' : ''}`;
+        const cardColor = RARITY_COLORS[card.rarity] || "#888";
         
         if (count > 0) uniqueOwnedCount++;
 
         cardWrapper.innerHTML = `
             <div class="card-inner">
                 <div class="card-front"></div>
-                <div class="card-back" style="border-color: ${card.color}">
+                <div class="card-back" style="border-color: ${cardColor}">
+                    <img src="${card.image_url}" class="card-image-bg" alt="${card.title}">
                     <div class="card-content">
-                        <span class="card-emoji">${card.emoji}</span>
                         <div class="card-title">${card.title}</div>
-                        <div class="card-rarity" style="color: ${card.color}">${card.rarity.toUpperCase()}</div>
+                        <div class="card-rarity" style="color: ${cardColor}">${card.rarity.toUpperCase()}</div>
                     </div>
                 </div>
             </div>
@@ -275,17 +199,18 @@ function openDeck() {
 }
 
 function previewCardFromDeck(card) {
-    // Вместо старых условий просто берем готовое значение point_value из Supabase!
-    let scrapValue = card.point_value || 10;
+    lastAwardedCard = card; 
+    const cardColor = RARITY_COLORS[card.rarity] || "#888";
+    
     modalInside.innerHTML = `
         <div class="card-container modal-view">
             <div class="card-inner">
                 <div class="card-front"></div>
-                <div class="card-back" style="border-color: ${card.color}">
+                <div class="card-back" style="border-color: ${cardColor}">
+                    <img src="${card.image_url}" class="card-image-bg" alt="${card.title}">
                     <div class="card-content">
-                        <span class="card-emoji">${card.emoji}</span>
                         <div class="card-title">${card.title}</div>
-                        <div class="card-rarity" style="color: ${card.color}">${card.rarity.toUpperCase()}</div>
+                        <div class="card-rarity" style="color: ${cardColor}">${card.rarity.toUpperCase()}</div>
                     </div>
                 </div>
             </div>
@@ -293,7 +218,7 @@ function previewCardFromDeck(card) {
     `;
 
     const modalActions = document.querySelector('.modal-actions');
-    let scrapValue = card.rarity === "лега" ? 100 : (card.rarity === "редкая" ? 25 : 10);
+    const scrapValue = card.point_value || 10;
 
     modalActions.innerHTML = `
         <button class="btn-modal btn-keep" onclick="closeModalAfterPreview()">Назад</button>
@@ -315,6 +240,7 @@ function previewCardFromDeck(card) {
             if (userInventory[card.id] === 0) delete userInventory[card.id];
             playerCoins += scrapValue;
             if (coinCountElement) coinCountElement.innerText = playerCoins;
+            if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
             closeModalAfterPreview();
         }, 750);
     };
@@ -334,7 +260,6 @@ function closeModalAfterPreview() {
                 <button class="btn-modal btn-burn" onclick="burnAwardedCard()">Сжечь</button>
             `;
         }
-         // ... (код, который у вас оборвался на closeModalAfterPreview)
         openDeck(); 
     }, 400);
 }
@@ -371,13 +296,11 @@ function triggerRandomQuiz() {
 
     const randomQuiz = SAMPLE_QUIZZES[Math.floor(Math.random() * SAMPLE_QUIZZES.length)];
     
-    // Бот меняет текст над головой
     changeBotSpeech(randomQuiz.question);
     
     optionsZone.innerHTML = ''; 
-    optionsZone.style.display = 'flex'; // Показываем кнопки в ряд
+    optionsZone.style.display = 'flex'; 
 
-    // Рендерим кнопки "Да" и "Нет"
     randomQuiz.options.forEach(option => {
         const btn = document.createElement('button');
         btn.className = 'btn-quiz-inline';
@@ -388,12 +311,12 @@ function triggerRandomQuiz() {
             if (typeof updateAffinityUI === 'function') updateAffinityUI();
             
             changeBotSpeech(option.reply);
-            optionsZone.style.display = 'none'; // Убираем кнопки после ответа
+            optionsZone.style.display = 'none'; 
+            if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
         };
         optionsZone.appendChild(btn);
     });
 
-    // Маленькая аккуратная кнопка-крестик "Пропустить"
     const skipBtn = document.createElement('button');
     skipBtn.className = 'btn-quiz-inline btn-quiz-skip';
     skipBtn.innerText = "✕";
