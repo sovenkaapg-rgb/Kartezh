@@ -139,7 +139,14 @@ async function sendNewCardToServer(cardId, cardTitle, rarity) {
 
 // Загрузка профиля игрока и карт из Flask
 async function loadGameDataFromServer() {
+    // ВАЖНО: Берем полную строчку initData, а не только объект user
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
+    
+    // Если мы в телеграме, но initData пустой (бывает при сбоях WebView)
+    if (!initData && window.Telegram && window.Telegram.WebApp) {
+        console.warn("Telegram WebApp запущен, но initData пуст. Перезапустите Mini App.");
+    }
+
     try {
         const cardsResponse = await fetch(`${BACKEND_URL}/api/cards-database`, {
             headers: { "X-Telegram-Init-Data": initData }
@@ -150,19 +157,19 @@ async function loadGameDataFromServer() {
             headers: { "X-Telegram-Init-Data": initData }
         });
         
-                if (profileResponse.ok) {
+        if (profileResponse.ok) {
             const profile = await profileResponse.json();
             playerCoins = profile.coins;
             playerAffinity = profile.affinity;
             userInventory = profile.inventory;
             
-            // ДОБАВИТЬ СТРОКУ: Обновляем имя пользователя на то, что определил бэкенд
-            if (playerUserElement && tgUsername !== "Путник") {
-                playerUserElement.innerText = tgUsername;
+            // ИСПРАВЛЕНО: Если мы получили реальный username от ТГ (переменная инициализирована вверху файла)
+            // выводим его. Иначе берем то, что прислал бэкенд.
+            if (playerUserElement) {
+                playerUserElement.innerText = tgUserId !== 123456789 ? tgUsername : "@demo_user";
             }
 
-// Находим этот кусок в loadGameDataFromServer():
-         if (profile.cooldown) {
+            if (profile.cooldown) {
                 const parsedDate = Date.parse(profile.cooldown);
                 if (!isNaN(parsedDate)) {
                     const now = Math.floor(Date.now() / 1000);
@@ -176,7 +183,6 @@ async function loadGameDataFromServer() {
                 cooldownSeconds = 0;
             }
 
-
             if (coinCountElement) coinCountElement.innerText = playerCoins;
             updateAffinityUI();
             startTimer();
@@ -184,8 +190,7 @@ async function loadGameDataFromServer() {
             startTimer();
         }
     } catch (error) {
-        console.log("Бэкенд Flask отдыхает. Включен автономный демо-режим.");
-        // Заполняем базу тестовыми картами, чтобы фронтенд отображал их при ошибке сети
+        console.log("Бэкенд Flask отдыхает. Включен автономный демо-режим.", error);
         ALL_GAME_CARDS = [
             { id: 1, title: "Стул", rarity: "обыч", image_url: "assets/deck_texture.png", point_value: 10 },
             { id: 2, title: "Самовар", rarity: "редкая", image_url: "assets/deck_texture.png", point_value: 25 },
