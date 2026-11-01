@@ -1,18 +1,26 @@
-// Адрес вашего бэкенда
-const BACKEND_URL = "https://retrogule.pythonanywhere.com/"; 
+// Адрес вашего Flask-бэкенда (Для локального теста - localhost, для продакшена - pythonanywhere)
+const BACKEND_URL = "http://127.0.0.1:5000"; 
 
-// Инициализация Telegram WebApp и получение никнейма игрока
+// Переменная объявляется ОДИН раз для всего проекта здесь
 const playerUserElement = document.getElementById('player-user');
+let tgUserId = null;
+let tgUsername = "Путник";
+
 if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe?.user) {
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
     const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-    if (playerUserElement) playerUserElement.innerText = tgUser.username ? `@${tgUser.username}` : tgUser.first_name;
+    tgUserId = tgUser.id;
+    tgUsername = tgUser.username ? `@${tgUser.username}` : tgUser.first_name;
+    if (playerUserElement) playerUserElement.innerText = tgUsername;
+} else {
+    tgUserId = 123456789; // Демо ID для браузера
+    if (playerUserElement) playerUserElement.innerText = "@demo_user";
 }
 
-// Глобальные переменные экономики, лояльности и времени
-let playerCoins = 120; 
-let playerAffinity = 45; // Лояльность в %
+// Глобальные переменные экономики, синхронизированные со структурами бота
+let playerCoins = 0; 
+let playerAffinity = 0; 
 let cooldownSeconds = 0; 
 let timerInterval = null;
 
@@ -25,10 +33,7 @@ function formatTime(totalSeconds) {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    const hStr = hours < 10 ? '0' + hours : hours;
-    const mStr = minutes < 10 ? '0' + minutes : minutes;
-    const sStr = seconds < 10 ? '0' + seconds : seconds;
-    return `${hStr}ч ${mStr}м ${sStr}с`;
+    return `${hours < 10 ? '0' + hours : hours}ч ${minutes < 10 ? '0' + minutes : minutes}м ${seconds < 10 ? '0' + seconds : seconds}с`;
 }
 
 function startTimer() {
@@ -36,15 +41,20 @@ function startTimer() {
     timeLeftElement.innerText = formatTime(cooldownSeconds);
     
     if (typeof updateCardsAvailability === 'function') updateCardsAvailability();
-
     const hourglassImg = document.querySelector('.icon-hourglass');
 
     timerInterval = setInterval(() => {
         if (cooldownSeconds > 0) {
             cooldownSeconds--;
             timeLeftElement.innerText = formatTime(cooldownSeconds);
+            
+            // 1. ПОВОРОТ КАЖДУЮ МИНУТУ (когда остаток секунд делится на 60)
             if (cooldownSeconds % 60 === 0 && hourglassImg) {
-                hourglassImg.classList.toggle('flip-hourglass');
+                hourglassImg.classList.add('flip-hourglass');
+                // Спустя 1 секунду (время анимации в CSS) убираем класс, чтобы зафиксировать часы
+                setTimeout(() => {
+                    hourglassImg.classList.remove('flip-hourglass');
+                }, 1000);
             }
         } else {
             clearInterval(timerInterval);
@@ -54,8 +64,39 @@ function startTimer() {
     }, 1000);
 }
 
-// Функция синхронизации таймера с бэкендом (при покупке часа или получении карты)
-async function sendCooldownUpdateToServer(newTimeISO) {
+// Запрос на уменьшение кулдауна (-1 час за 20 монет)
+async function buyCooldownReduction() {
+    const REDUCTION_COST = 20;
+    
+    if (cooldownSeconds <= 0) {
+        if (typeof changeBotSpeech === 'function') {
+            changeBotSpeech("Таймер уже истек, беги за бесплатной картой! Зачем ты жмешь кнопку?..");
+        }
+        return;
+    }
+    
+    if (playerCoins < REDUCTION_COST) {
+        if (typeof changeBotSpeech === 'function') {
+            changeBotSpeech(`Нищеброд! Тебе не хватает монет. Нужно ровно ${REDUCTION_COST} 🪙.`);
+        }
+        return;
+    }
+    
+    playerCoins -= REDUCTION_COST;
+    if (coinCountElement) coinCountElement.innerText = playerCoins;
+    
+    // 2. ПОВОРОТ ПРИ ПОКУПКЕ ВРЕМЕНИ (с точно таким же триггером и сбросом)
+    const hourglassImg = document.querySelector('.icon-hourglass');
+    if (hourglassImg) {
+        hourglassImg.classList.add('flip-hourglass');
+        setTimeout(() => {
+            hourglassImg.classList.remove('flip-hourglass');
+        }, 1000);
+    }
+    
+    cooldownSeconds = Math.max(0, cooldownSeconds - 3600);
+    startTimer();
+
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
     try {
         await fetch(`${BACKEND_URL}/api/update-cooldown?points=${playerCoins}`, {
@@ -63,40 +104,14 @@ async function sendCooldownUpdateToServer(newTimeISO) {
             headers: { "X-Telegram-Init-Data": initData }
         });
     } catch (e) {
-        console.error("Не удалось обновить кулдаун на сервере:", e);
+        console.error("Не удалось сохранить кулдаун на сервере:", e);
     }
-}
-
-// ПРАВИЛЬНАЯ ПОКУПКА ЧАСА (Синхронизировано с логикой бота — вычитает 1 час)
-async function buyCooldownReduction() {
-    const REDUCTION_COST = 20;
-    if (cooldownSeconds <= 0) {
-        alert("Таймер уже истек, беги за бесплатной картой!");
-        return;
-    }
-    
-    if (playerCoins < REDUCTION_COST) {
-        alert(`Нищеброд! Тебе не хватает монет. Нужно ровно ${REDUCTION_COST} 🪙.`);
-        return;
-    }
-    
-    const hourglassImg = document.querySelector('.icon-hourglass');
-    if (hourglassImg) hourglassImg.classList.toggle('flip-hourglass');
-    
-    playerCoins -= REDUCTION_COST;
-    if (coinCountElement) coinCountElement.innerText = playerCoins;
-
-    // Уменьшаем кулдаун на 1 час (3600 секунд) локально
-    cooldownSeconds = Math.max(0, cooldownSeconds - 3600);
-    startTimer();
-
-    // Отправляем изменения на сервер монет и обновленного кулдауна
-    await saveResourcesToServer();
 
     if (typeof changeBotSpeech === 'function' && typeof BOT_PHRASES !== 'undefined') {
         changeBotSpeech(BOT_PHRASES.buy_hour);
     }
 }
+
 
 function updateAffinityUI() {
     const affPercent = document.getElementById('affinity-percent');
@@ -105,7 +120,7 @@ function updateAffinityUI() {
     if (affFill) affFill.style.width = `${playerAffinity}%`;
 }
 
-// Функция отправки новой карты в user_cards и card_logs на бэкенд
+// Отправка полученной карты на Flask сервер
 async function sendNewCardToServer(cardId, cardTitle, rarity) {
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
     try {
@@ -115,31 +130,22 @@ async function sendNewCardToServer(cardId, cardTitle, rarity) {
                 "X-Telegram-Init-Data": initData,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                card_id: parseInt(cardId),
-                card_title: cardTitle,
-                rarity: rarity
-            })
+            body: JSON.stringify({ card_id: parseInt(cardId), card_title: cardTitle, rarity: rarity })
         });
     } catch (e) {
-        console.error("Не удалось сохранить карту в БД:", e);
+        console.error("Не удалось сохранить карту в БД через Flask:", e);
     }
 }
 
-// Функция для загрузки данных с вашего Python-сервера
+// Загрузка профиля игрока и карт из Flask
 async function loadGameDataFromServer() {
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
-
     try {
-        // 1. Запрашиваем из базы полную базу карт
         const cardsResponse = await fetch(`${BACKEND_URL}/api/cards-database`, {
             headers: { "X-Telegram-Init-Data": initData }
         });
-        if (cardsResponse.ok) {
-            ALL_GAME_CARDS = await cardsResponse.json();
-        }
+        if (cardsResponse.ok) ALL_GAME_CARDS = await cardsResponse.json();
 
-        // 2. Запрашиваем профиль игрока (монеты, лояльность, кулдаун)
         const profileResponse = await fetch(`${BACKEND_URL}/api/profile`, {
             headers: { "X-Telegram-Init-Data": initData }
         });
@@ -165,29 +171,32 @@ async function loadGameDataFromServer() {
         } else {
             startTimer();
         }
-
     } catch (error) {
-        console.log("Бэкенд спит. Включен демо-режим.");
+        console.log("Бэкенд Flask отдыхает. Включен автономный демо-режим.");
+        // Заполняем базу тестовыми картами, чтобы фронтенд отображал их при ошибке сети
+        ALL_GAME_CARDS = [
+            { id: 1, title: "Стул", rarity: "обыч", image_url: "assets/deck_texture.png", point_value: 10 },
+            { id: 2, title: "Самовар", rarity: "редкая", image_url: "assets/deck_texture.png", point_value: 25 },
+            { id: 3, title: "Декса", rarity: "лега", image_url: "assets/deck_texture.png", point_value: 100 }
+        ];
+        if (typeof initCards === 'function' && cooldownSeconds <= 0) initCards();
         startTimer(); 
     }
 }
 
-// Функция для сохранения изменений монет и лояльности на сервер
+// Синхронизация монет и лояльности
 async function saveResourcesToServer() {
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
     try {
-        // Дополнительно передаем текущее расчетное смещение времени, чтобы бэкенд обновил last_pack_opened
-        const mockLastPackTime = new Date(Date.now() - ((4 * 3600 - cooldownSeconds) * 1000)).toISOString();
         await fetch(`${BACKEND_URL}/api/sync-resources?coins=${playerCoins}&affinity=${playerAffinity}`, {
             method: "POST",
             headers: { "X-Telegram-Init-Data": initData }
         });
     } catch (e) {
-        console.error("Не удалось сохранить ресурсы на сервере:", e);
+        console.error("Не удалось синхронизировать ресурсы:", e);
     }
 }
 
-// Инициализация событий
 window.addEventListener('DOMContentLoaded', () => {
     if (buyHourBtn) buyHourBtn.addEventListener('click', buyCooldownReduction);
     loadGameDataFromServer();

@@ -2,110 +2,103 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <!-- Отключаем лишнее масштабирование на смартфонах -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Картеж</title>
-    <link href="https://googleapis.com" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Картеж - Mini App</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Инициализация Telegram SDK -->
+    <script src="https://telegram.org"></script>
 </head>
 <body>
-<div class="game-container">
-    
-    <!-- ВЕРХНЯЯ ПАНЕЛЬ: Деньги, Лояльность, Время -->
-    <header class="top-bar">
-        <!-- Баланс монет -->
-        <div class="coin-balance">
-            <img src="assets/coins_pile.png" alt="Монеты" class="icon-coins">
-            <span id="coin-count">120</span>
+
+    <div class="game-container">
+        <!-- Верхняя панель: баланс и таймер кулдауна -->
+        <div class="top-bar">
+            <div class="top-left-group">
+                <div class="coin-balance">
+                    <img src="assets/coins_pile.png" class="icon-coins" alt="Монеты">
+                    <span id="coin-count">0</span>
+                </div>
+                
+                <div class="affinity-block">
+                    <div class="affinity-header">
+                        <span>Лояльность</span>
+                        <span id="affinity-percent">0%</span>
+                    </div>
+                    <div class="affinity-bar-bg">
+                        <div class="affinity-bar-fill" id="affinity-fill"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="timer-block">
+                <img src="assets/hourglass.png" class="icon-hourglass" alt="Таймер">
+                <div class="timer-info">
+                    <span id="time-left">00ч 00м 00с</span>
+                    <button class="btn-buy-hour">Купить час (-20 🪙)</button>
+                </div>
+            </div>
         </div>
 
-        <!-- НОВАЯ ШКАЛА: Лояльность (Affinity) -->
-        <div class="affinity-block">
-            <div class="affinity-header">
-                <span>Лояльность</span>
-                <span id="affinity-percent">45%</span>
+        <!-- Игровое поле, диалоги и интерактивный бот -->
+        <div class="game-field">
+            <div class="bot-speech-bubble">
+                <span id="bot-speech">Приветствую, путник... Испытаешь удачу?</span>
             </div>
-            <div class="affinity-bar-bg">
-                <div class="affinity-bar-fill" id="affinity-fill" style="width: 45%;"></div>
+
+            <!-- Зона для встроенных мини-опросов лояльности -->
+            <div class="quiz-options-inline" id="quiz-zone">
+                <!-- Сюда скрипт вставит кнопки из /api/bot-quiz -->
+            </div>
+
+            <img src="assets/бот.png" class="bot-character" alt="Бот">
+            
+            <div class="magic-ring-container">
+                <img src="assets/magic_circle.png" class="magic-ring-bg" alt="Магический круг">
+                <div class="cards-drop-zone" id="cards-zone">
+                    <div class="zone-placeholder">Время еще не пришло...</div>
+                </div>
             </div>
         </div>
 
-        <!-- Таймер кулдауна -->
-        <div class="timer-block">
-            <img src="assets/hourglass.png" alt="Таймер" class="icon-hourglass">
-            <div class="timer-info">
-                <span id="time-left">02ч 15м</span>
-                <button class="btn-buy-hour">Купить час (-20 🪙)</button>
+        <!-- Нижняя панель: профиль и колода -->
+    <div class="bottom-bar">
+            <div class="deck-button" onclick="openDeck()">
+                <img src="assets/стопка.png" class="icon-deck" alt="Колода">
+                <span>Колода</span>
             </div>
-        </div>
-    </header>
 
-<main class="game-field">
-    <!-- Бокс текста бота -->
-    <div class="bot-speech-bubble" id="bot-speech">
-        Приветствую, путник... Испытаешь удачу?
+            <span class="player-username" id="player-user">@username</span>
+        </div>
     </div>
 
-    <!-- Контейнер для встроенных кнопок (он ничего не блокирует) -->
-    <div class="quiz-options-inline" id="quiz-options-zone"></div>
-
-    <!-- Бот-персонаж -->
-    <img src="assets/бот.png" alt="Бот" class="bot-character">
-    
-    <!-- Магический круг и карты -->
-    <div class="magic-ring-container">
-        <img src="assets/magic_circle.png" alt="Магический круг" class="magic-ring-bg">
-        <div class="cards-drop-zone" id="cards-zone">
-            <div class="zone-placeholder">Время еще не пришло...</div>
+    <!-- Модальное окно награды и сжигания -->
+    <div class="card-modal" id="card-modal">
+        <div class="modal-content">
+            <div class="modal-card-placeholder" id="modal-card-inside">
+                <!-- Сюда клонируется карта -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal btn-keep" onclick="closeModal()">В колоду</button>
+                <button class="btn-modal btn-burn" onclick="burnAwardedCard()">Сжечь</button>
+            </div>
         </div>
     </div>
-</main>
 
-
-    <!-- НИЖНЯЯ ПАНЕЛЬ -->
-    <footer class="bottom-bar">
-        <!-- Колода -->
-        <div class="deck-button" onclick="openDeck()">
-            <img src="assets/стопка.png" alt="Колода" class="icon-deck">
-            <span>Колода</span>
+    <!-- Экран просмотра всей коллекции (Колоды) -->
+    <div class="deck-screen" id="deck-screen">
+        <div class="deck-header">
+            <div class="deck-title-block">
+                <img src="assets/стопка.png" class="icon-deck-small" alt="Колода">
+                <h2>Твоя Колода (<span id="deck-count">0/0</span>)</h2>
+            </div>
+            <button class="btn-close-deck" onclick="closeDeck()">✕</button>
         </div>
-
-        <!-- НОВЫЙ БЛОК: Никнейм игрока (для скриншотов) -->
-        <div class="player-username" id="player-user">@username</div>
-        
-        <!-- РЕКЛАМА ТГК (в самом углу) -->
-        <a href="https://t.me" target="_blank" class="tg-watermark">@sovenkaart</a>
-    </footer>
-</div>
-
-<!-- Всплывающее окно для увеличенной карты -->
-<div class="card-modal" id="card-modal">
-    <div class="modal-content">
-        <div class="modal-card-placeholder" id="modal-card-inside"></div>
-        <div class="modal-actions">
-            <button class="btn-modal btn-keep" onclick="closeModal()">В колоду</button>
-            <button class="btn-modal btn-burn" onclick="burnAwardedCard()">Сжечь</button>
+        <div class="deck-grid" id="deck-grid">
+            <!-- Карты генерируются динамически -->
         </div>
     </div>
-</div>
 
-<!-- ЭКРАН КОЛЛЕКЦИИ / КОЛОДЫ -->
-<div class="deck-screen" id="deck-screen">
-    <header class="deck-header">
-        <div class="deck-title-block">
-            <img src="assets/стопка.png" alt="Колода" class="icon-deck-small">
-            <h2>Твоя Колода (<span id="deck-count">0/5</span>)</h2>
-        </div>
-        <button class="btn-close-deck" onclick="closeDeck()">✕</button>
-    </header>
-    <div class="deck-grid" id="deck-grid"></div>
-</div>
-    <!-- Подключаем Telegram Web App API -->
-    <script src="https://telegram.org"></script>
-    
-    <!-- ПОДКЛЮЧАЕМ ДВА НОВЫХ СКРИПТА ВМЕСТО ОДНОГО СТАРГО -->
-    <script src="engine.js"></script>
+    <!-- Скрипты логики (Сначала API-сервер, затем механика карт) -->
+    <script src="script.js"></script>
     <script src="cards.js"></script>
 </body>
 </html>
-

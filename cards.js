@@ -17,7 +17,7 @@ const BOT_PHRASES = {
         "Твоя судьба готова раскрыться. Выбирай карту.",
         "Чувствуешь этот холод? Пора сделать выбор..."
     ],
-    drop_normal: "Обычная безделушка... Ей место в грязи.",
+    drop_normal: "Ообычная безделушка... Ей место в грязи.",
     drop_rare: "Редкая находка. Возможно, в тебе есть потенциал.",
     drop_legendary: "🔥 НЕВЕРОЯТНО! Сама Бездна благоволит тебе сегодня!..",
     drop_duplicate: "Хах, эта карта уже принадлежит тебе. Зачем тебе еще одна?",
@@ -35,7 +35,6 @@ const RARITY_COLORS = {
     "лега": "#e67e22"
 };
 
-// СТРОГИЕ ВЕСА ИЗ ТГ БОТА
 const RARITY_CHANCES = { 'обыч': 0.799, 'редкая': 0.20, 'лега': 0.001 };
 const RARITY_BY_AFFINITY = [
     { threshold: 70, weights: { 'обыч': 0.694, 'редкая': 0.295, 'лега': 0.011 } },
@@ -64,7 +63,6 @@ function updateCardsAvailability() {
     }
 }
 
-// ВЫЧИСЛЕНИЕ РЕДКОСТИ ПО ЛОЯЛЬНОСТИ (КАК В БОТЕ)
 function getWeightedRarity(affinity) {
     let activeWeights = RARITY_CHANCES;
     for (const level of RARITY_BY_AFFINITY) {
@@ -82,26 +80,22 @@ function getWeightedRarity(affinity) {
     return 'обыч';
 }
 
-// ИЛЛЮЗИЯ ВЫБОРА: 3 карты на экране
 function initCards() {
     if (!cardsZone || ALL_GAME_CARDS.length === 0) return;
     cardsZone.innerHTML = ''; 
     
-    // 1. Сервер/алгоритм определяет ДРОП заранее на основе лояльности игрока
     const targetRarity = getWeightedRarity(playerAffinity);
     const poolOfTargetRarity = ALL_GAME_CARDS.filter(c => c.rarity === targetRarity);
     const finalWinningCard = poolOfTargetRarity.length > 0 
         ? poolOfTargetRarity[Math.floor(Math.random() * poolOfTargetRarity.length)]
         : ALL_GAME_CARDS[Math.floor(Math.random() * ALL_GAME_CARDS.length)];
 
-    // 2. Генерируем 3 карты, но "победа" привяжется к той, на которую нажмут
     for (let i = 0; i < 3; i++) {
         const cardContainer = document.createElement('div');
         cardContainer.className = 'card-container';
         cardContainer.style.animationDelay = `${i * 0.15}s`;
         cardContainer.dataset.index = i;
         
-        // Рубашка
         cardContainer.innerHTML = `
             <div class="card-inner">
                 <div class="card-front"></div>
@@ -116,7 +110,6 @@ function initCards() {
         `;
         
         cardContainer.addEventListener('click', () => {
-            // В момент клика присваиваем нажатой карте наш выигрыш, а остальным — пустышки
             lastAwardedCard = finalWinningCard;
             revealAllCardsWithIllusion(cardContainer, finalWinningCard);
         });
@@ -136,10 +129,9 @@ function revealAllCardsWithIllusion(selectedCard, winningCard) {
         
         let currentCardData;
         if (card === selectedCard) {
-            currentCardData = winningCard; // Выбранная всегда выигрывает!
+            currentCardData = winningCard;
             card.classList.add('flipped');
         } else {
-            // Другие карты показывают просто случайный хлам из базы для иллюзии
             currentCardData = ALL_GAME_CARDS[Math.floor(Math.random() * ALL_GAME_CARDS.length)];
             setTimeout(() => { card.classList.add('flipped', 'card-leave-right'); }, 200);
         }
@@ -153,7 +145,6 @@ function revealAllCardsWithIllusion(selectedCard, winningCard) {
         rarityDiv.style.color = cardColor;
     });
 
-    // Реплика бота
     const isDuplicate = userInventory[winningCard.id] > 0;
     if (isDuplicate) changeBotSpeech(BOT_PHRASES.drop_duplicate);
     else {
@@ -162,7 +153,6 @@ function revealAllCardsWithIllusion(selectedCard, winningCard) {
         else changeBotSpeech(BOT_PHRASES.drop_normal);
     }
 
-    // Открытие модального окна сохранения
     setTimeout(() => {
         const clonedCard = selectedCard.cloneNode(true);
         clonedCard.classList.remove('flipped');
@@ -174,30 +164,23 @@ function revealAllCardsWithIllusion(selectedCard, winningCard) {
     }, 900);
 }
 
-// ЕДИНАЯ ОЧИЩЕННАЯ ФУНКЦИЯ ЗАКРЫТИЯ МОДАЛКИ С СОХРАНЕНИЕМ
 function closeModal() {
     if (lastAwardedCard) {
         const id = lastAwardedCard.id;
         userInventory[id] = (userInventory[id] || 0) + 1;
         
-        // В мини-приложении за отправку карт лояльность НЕ начисляется и НЕ отнимается (как в боте)
         if (typeof sendNewCardToServer === 'function') {
             sendNewCardToServer(id, lastAwardedCard.title, lastAwardedCard.rarity);
         }
-        if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
     }
     cardModal.style.opacity = '0';
     setTimeout(() => {
         cardModal.style.display = 'none';
-        cooldownSeconds = 4 * 3600; // Сброс КД на 4 часа после успешного забора карты
-        
-        // Перезапускаем кулдаун на сервере через синхронизацию ресурсов
-        if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
+        cooldownSeconds = 4 * 3600; 
         if (typeof startTimer === 'function') startTimer();
     }, 400);
 }
 
-// СЖИГАНИЕ КАРТЫ (Лояльность больше не уменьшается, синхронизировано с ботом)
 function burnAwardedCard() {
     const cardToBurn = modalInside.querySelector('.card-container');
     if (cardToBurn) cardToBurn.classList.add('card-burn-animation');
@@ -246,7 +229,7 @@ function openDeck() {
             ${count > 1 ? `<div class="card-badge">x${count}</div>` : ''}
         `;
         
-                if (count > 0) {
+        if (count > 0) {
             cardWrapper.addEventListener('click', () => { previewCardFromDeck(card); });
         }
         deckGrid.appendChild(cardWrapper);
@@ -257,15 +240,33 @@ function openDeck() {
     setTimeout(() => { deckScreen.style.opacity = '1'; }, 10);
 }
 
+// Функция плавного закрытия модалки просмотра деки
+function closeModalAfterPreview() {
+    cardModal.style.opacity = '0';
+    setTimeout(() => {
+        cardModal.style.display = 'none';
+        // Возвращаем стандартные обработчики кнопок обратно
+        const modalActions = document.querySelector('.modal-actions');
+        if (modalActions) {
+            modalActions.innerHTML = `
+                <button class="btn-modal btn-keep" onclick="closeModal()">В колоду</button>
+                <button class="btn-modal btn-burn" onclick="burnAwardedCard()">Сжечь</button>
+            `;
+        }
+        openDeck(); // Обновляем грид колоды, чтобы убрать сожженную карту
+    }, 400);
+}
+
 function previewCardFromDeck(card) {
     lastAwardedCard = card; 
     const cardColor = RARITY_COLORS[card.rarity] || "#888";
     
+    // ВАЖНО: Вешаем класс 'flipped', чтобы карта сразу стояла лицом к игроку и отображала арт!
     modalInside.innerHTML = `
-        <div class="card-container modal-view">
+        <div class="card-container modal-view flipped">
             <div class="card-inner">
                 <div class="card-front"></div>
-                <div class="card-back" style="border-color: ${cardColor}">
+                <div class="card-back" style="border-color: ${cardColor}; background-color: #2c1a30;">
                     <img src="${card.image_url}" class="card-image-bg" alt="${card.title}">
                     <div class="card-content">
                         <div class="card-title">${card.title}</div>
@@ -287,17 +288,22 @@ function previewCardFromDeck(card) {
     document.getElementById('deck-burn-btn').onclick = function() {
         if (!userInventory[card.id]) return;
 
+        // Находим внутренний контейнер карты для применения анимации сгорания
         const cardToBurn = modalInside.querySelector('.card-container');
         if (cardToBurn) cardToBurn.classList.add('card-burn-animation');
         changeBotSpeech(BOT_PHRASES.burn_card);
 
-        // Лояльность при сжигании в деке больше не падает! (Синхронизировано с ботом)
+        // Ждем ровно 750мс окончания CSS-эффекта пепла
         setTimeout(() => {
             userInventory[card.id]--;
             if (userInventory[card.id] === 0) delete userInventory[card.id];
+            
             playerCoins += scrapValue;
             if (coinCountElement) coinCountElement.innerText = playerCoins;
+            
             if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
+            
+            // Теперь функция существует и окно закроется автоматически!
             closeModalAfterPreview();
         }, 750);
     };
@@ -306,24 +312,21 @@ function previewCardFromDeck(card) {
     setTimeout(() => { cardModal.style.opacity = '1'; }, 10);
 }
 
-function closeModalAfterPreview() {
-    cardModal.style.opacity = '0';
-    setTimeout(() => {
-        cardModal.style.display = 'none';
-        const modalActions = document.querySelector('.modal-actions');
-        if (modalActions) {
-            modalActions.innerHTML = `
-                <button class="btn-modal btn-keep" onclick="closeModal()">В колоду</button>
-                <button class="btn-modal btn-burn" onclick="burnAwardedCard()">Сжечь</button>
-            `;
-        }
-        openDeck(); 
-    }, 400);
-}
-
 function closeDeck() {
     if (!deckScreen) return;
     deckScreen.style.opacity = '0';
-    setTimeout(() => { deckScreen.style.display = 'none'; }, 300);
+    setTimeout(() => { 
+        deckScreen.style.display = 'none'; 
+        // При закрытии колоды проверяем таймер, чтобы вернуть карты на поле, если время пришло
+        if (typeof updateCardsAvailability === 'function') updateCardsAvailability();
+    }, 300);
 }
+
+// ПРИНУДИТЕЛЬНО ПРИВЯЗЫВАЕМ КЛИК К КРЕСТИКУ ПОСЛЕ ЗАГРУЗКИ СТРАНИЦЫ
+window.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.querySelector('.btn-close-deck');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeDeck);
+    }
+});
 
