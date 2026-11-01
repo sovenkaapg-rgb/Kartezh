@@ -151,12 +151,13 @@ async function sendNewCardToServer(cardId) {
                 "X-Telegram-Init-Data": initData,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ card_id: int(cardId) }) // отправляем только ID карты, сервер сам всё найдет
+            body: JSON.stringify({ card_id: parseInt(cardId) }) // Исправлено здесь!
         });
     } catch (e) {
         console.error("Не удалось сохранить карту в БД:", e);
     }
 }
+
 
 
 // Загрузка профиля игрока и карт из Flask
