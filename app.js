@@ -10,7 +10,7 @@ const userId = tg?.initDataUnsafe?.user?.id || 123456789; // 123456789 - фол�
 const username = tg?.initDataUnsafe?.user?.username || "Путник";
 
 // Конфигурация вашего API (куда бот принимает веб-хуки или запросы от Mini App)
-const API_BASE_URL = "https://your-bot-backend-domain.com"; 
+const API_BASE_URL = "https://retrogule.pythonanywhere.com"; 
 
 // Состояние приложения
 let isCooldownActive = false;
