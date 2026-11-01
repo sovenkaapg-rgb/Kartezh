@@ -1,22 +1,61 @@
-// Адрес вашего Flask-бэкенда (Для локального теста - localhost, для продакшена - pythonanywhere)
+// Адрес вашего Flask-бэкенда
 const BACKEND_URL = "https://retrogule.pythonanywhere.com"; 
 
-// Переменная объявляется ОДИН раз для всего проекта здесь
 const playerUserElement = document.getElementById('player-user');
 let tgUserId = null;
 let tgUsername = "Путник";
 
-if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe?.user) {
-    window.Telegram.WebApp.ready();
-    window.Telegram.WebApp.expand();
-    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-    tgUserId = tgUser.id;
-    tgUsername = tgUser.username ? `@${tgUser.username}` : tgUser.first_name;
-    if (playerUserElement) playerUserElement.innerText = tgUsername;
-} else {
-    tgUserId = 123456789; // Демо ID для браузера
+// Глобальные переменные экономики
+let playerCoins = 0; 
+let playerAffinity = 0; 
+let cooldownSeconds = 0; 
+let timerInterval = null;
+
+const coinCountElement = document.getElementById('coin-count');
+const timeLeftElement = document.getElementById('time-left');
+const buyHourBtn = document.querySelector('.btn-buy-hour');
+
+// --- НОВАЯ ФУНКЦИЯ ИНИЦИАЛИЗАЦИИ TELEGRAM ---
+function initializeTelegramApp() {
+    // Проверяем, что скрипт Telegram вообще загружен
+    if (window.Telegram && window.Telegram.WebApp) {
+        try {
+            // Сообщаем Telegram, что приложение готово к отрисовке
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+
+            // Проверяем наличие данных пользователя
+            if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+                tgUserId = tgUser.id;
+                tgUsername = tgUser.username ? `@${tgUser.username}` : tgUser.first_name;
+                
+                if (playerUserElement) playerUserElement.innerText = tgUsername;
+                console.log("Успешная авторизация ТГ:", tgUsername, tgUserId);
+            } else {
+                // Если мы внутри ТГ, но почему-то initData пуст (такое бывает в старых версиях ПК-клиента)
+                setDemoMode("Пустой initData");
+            }
+        } catch (err) {
+            console.error("Ошибка при чтении данных WebApp:", err);
+            setDemoMode("Ошибка инициализации");
+        }
+    } else {
+        // Если открыли просто в браузере
+        setDemoMode("Обычный браузер");
+    }
+
+    // После того как определились с ID, строго ЗАПУСКАЕМ загрузку данных с сервера
+    loadGameDataFromServer();
+}
+
+function setDemoMode(reason) {
+    console.log(`Включен демо-режим. Причина: ${reason}`);
+    tgUserId = 123456789;
+    tgUsername = "@demo_user";
     if (playerUserElement) playerUserElement.innerText = "@demo_user";
 }
+
 
 // Глобальные переменные экономики, синхронизированные со структурами бота
 let playerCoins = 0; 
@@ -216,5 +255,11 @@ async function saveResourcesToServer() {
 
 window.addEventListener('DOMContentLoaded', () => {
     if (buyHourBtn) buyHourBtn.addEventListener('click', buyCooldownReduction);
-    loadGameDataFromServer();
+    
+    // Вместо мгновенного вызова loadGameDataFromServer, 
+    // даем системе 150 миллисекунд на гарантированное получение данных от API Telegram
+    setTimeout(() => {
+        initializeTelegramApp();
+    }, 150);
 });
+
