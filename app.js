@@ -98,7 +98,7 @@ async function requestAPI(endpoint, data = {}) {
     // --- Оригинальная сетевая логика (сработает, когда вставите реальный URL бэкенда) ---
     try {
         const payload = { user_id: playerState.userId, username: playerState.username, ...data };
-        const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
+        const response = await fetch(`${CONFIG.API_URL}${endpoint}/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
