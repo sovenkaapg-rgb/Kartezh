@@ -150,20 +150,32 @@ async function loadGameDataFromServer() {
             headers: { "X-Telegram-Init-Data": initData }
         });
         
-        if (profileResponse.ok) {
+                if (profileResponse.ok) {
             const profile = await profileResponse.json();
             playerCoins = profile.coins;
             playerAffinity = profile.affinity;
             userInventory = profile.inventory;
+            
+            // ДОБАВИТЬ СТРОКУ: Обновляем имя пользователя на то, что определил бэкенд
+            if (playerUserElement && tgUsername !== "Путник") {
+                playerUserElement.innerText = tgUsername;
+            }
 
-            if (profile.cooldown) {
-                const now = Math.floor(Date.now() / 1000);
-                const cooldownStart = Math.floor(new Date(profile.cooldown).getTime() / 1000);
-                const cooldownEnd = cooldownStart + (4 * 3600); 
-                cooldownSeconds = Math.max(0, cooldownEnd - now);
+// Находим этот кусок в loadGameDataFromServer():
+         if (profile.cooldown) {
+                const parsedDate = Date.parse(profile.cooldown);
+                if (!isNaN(parsedDate)) {
+                    const now = Math.floor(Date.now() / 1000);
+                    const cooldownStart = Math.floor(parsedDate / 1000);
+                    const cooldownEnd = cooldownStart + (4 * 3600); 
+                    cooldownSeconds = Math.max(0, cooldownEnd - now);
+                } else {
+                    cooldownSeconds = 0;
+                }
             } else {
                 cooldownSeconds = 0;
             }
+
 
             if (coinCountElement) coinCountElement.innerText = playerCoins;
             updateAffinityUI();
