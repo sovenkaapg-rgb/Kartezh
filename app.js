@@ -34,7 +34,7 @@ let playerState = {
 // Настройки подключения к вашему бэкенду
 const CONFIG = {
     // ЗАМЕНИ НА URL СВОЕГО РАЗВЕРНУТОГО БЭКЕНДА (например, на Railway, Render или VPS)
-    API_URL: "https://your-backend-api.com", 
+    API_URL: "https://retrogule.pythonanywhere.com", 
     REDUCTION_COST: 20
 };
 
