@@ -1,5 +1,5 @@
 // Адрес вашего Flask-бэкенда (Для локального теста - localhost, для продакшена - pythonanywhere)
-const BACKEND_URL = "http://127.0.0.1:5000"; 
+const BACKEND_URL = "https://retrogule.pythonanywhere.com/"; 
 
 // Переменная объявляется ОДИН раз для всего проекта здесь
 const playerUserElement = document.getElementById('player-user');
