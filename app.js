@@ -2,29 +2,42 @@
 const SUPABASE_URL = "https://lxfkjjctsrakayzqyiac.supabase.co";
 const SUPABASE_KEY = "sb_publishable_zMxBVM29AeqCja0GdMGJ5g_CKPJmGgf";
 // ========================================================
+// Мягкая проверка объекта Telegram
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-// Инициализируем Telegram и Supabase
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand(); // Разворачиваем приложение на весь экран
+if (tg) {
+    tg.ready();
+    tg.expand();
+}
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Проверяем, загрузилась ли библиотека Supabase
+let supabase = null;
+if (typeof supabase !== 'undefined' && supabase.createClient) {
+    supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} else if (window.supabase && window.supabase.createClient) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
 
-// Получаем ID пользователя из Telegram
-const user = tg.initDataUnsafe?.user;
-// Если тестируем на компьютере (вне ТГ) — ставим тестовый ID, чтобы сайт не ломался
-const userId = user ? user.id : 123456789; 
+// Безопасно вытаскиваем ID пользователя
+const user = tg ? tg.initDataUnsafe?.user : null;
+const userId = user ? user.id : 123456789; // Тестовый ID для ПК
 const username = user ? (user.username || user.first_name) : "Тестовый_Юзер";
 
 let playerPoints = 0;
 let lastPackOpened = null;
-const PACK_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 часа в миллисекундах
+const PACK_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 
-// Запускаем при загрузке страницы
 document.addEventListener("DOMContentLoaded", async () => {
+    // Если Supabase не загрузился из сети, пишем ошибку вместо вечной загрузки
+    if (!supabase) {
+        console.error("Ошибка: библиотека Supabase не была загружена!");
+        const timerText = document.getElementById('time-left');
+        if (timerText) timerText.textContent = "Ошибка сети";
+        return;
+    }
+    
     await loadOrCreatePlayer();
     initGameLogic();
-    // Запускаем ежесекундное обновление таймера
     setInterval(updateTimerDisplay, 1000);
 });
 
