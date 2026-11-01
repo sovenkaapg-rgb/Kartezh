@@ -2,106 +2,94 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
     <title>Картеж - Mini App</title>
     <link rel="stylesheet" href="style.css">
-    <!-- ОФИЦИАЛЬНЫЙ TELEGRAM SDK — добавлен точный путь к файлу скрипта -->
-   <script src="https://telegram.org"></script>
-
+    <!-- Подключаем скрипт Telegram для работы Mini App -->
+    <script src="https://telegram.org"></script>
 </head>
-
-
 <body>
-
     <div class="game-container">
-        <!-- Верхняя панель: баланс и таймер кулдауна -->
+        <!-- Верхняя панель: Баланс и Таймер -->
         <div class="top-bar">
             <div class="top-left-group">
                 <div class="coin-balance">
                     <img src="assets/coins_pile.png" class="icon-coins" alt="Монеты">
                     <span id="coin-count">0</span>
                 </div>
-                
                 <div class="affinity-block">
                     <div class="affinity-header">
                         <span>Лояльность</span>
-                        <span id="affinity-percent">0%</span>
+                        <span id="affinity-pct">0%</span>
                     </div>
-                    <div class="affinity-bar-bg">
-                        <div class="affinity-bar-fill" id="affinity-fill"></div>
-                    </div>
+                    <div class="affinity-bar-bg"><div class="affinity-bar-fill" id="affinity-fill" style="width: 0%;"></div></div>
                 </div>
             </div>
             <div class="timer-block">
-                <img src="assets/hourglass.png" class="icon-hourglass" alt="Таймер">
+                <img src="assets/hourglass.png" class="icon-hourglass" id="hourglass" alt="Таймер">
                 <div class="timer-info">
                     <span id="time-left">00ч 00м 00с</span>
-                    <button class="btn-buy-hour">Купить час (-20 🪙)</button>
+                    <button class="btn-buy-hour" id="btn-reduce-cd">Купить час (-20 🪙)</button>
                 </div>
             </div>
         </div>
 
-        <!-- Игровое поле, диалоги и интерактивный бот -->
+        <!-- Игровое поле -->
         <div class="game-field">
-            <div class="bot-speech-bubble">
-                <span id="bot-speech">Приветствую, путник... Испытаешь удачу?</span>
-            </div>
-
-            <!-- Зона для встроенных мини-опросов лояльности -->
+            <div class="bot-speech-bubble" id="bot-bubble">Приветствую, путник... Испытаешь удачу?</div>
+            
+            <!-- Инлайн-плашка для вопросов лояльности -->
             <div class="quiz-options-inline" id="quiz-zone">
-                <!-- Сюда скрипт вставит кнопки из /api/bot-quiz -->
+                <button class="btn-quiz-inline" id="quiz-btn-a">Вариант А</button>
+                <button class="btn-quiz-inline" id="quiz-btn-b">Вариант Б</button>
+                <button class="btn-quiz-inline btn-quiz-skip" id="quiz-btn-skip">✕</button>
             </div>
 
             <img src="assets/бот.png" class="bot-character" alt="Бот">
-            
+
             <div class="magic-ring-container">
                 <img src="assets/magic_circle.png" class="magic-ring-bg" alt="Магический круг">
-                <div class="cards-drop-zone" id="cards-zone">
-                    <div class="zone-placeholder">Время еще не пришло...</div>
+                <div class="cards-drop-zone" id="drop-zone">
+                    <span class="zone-placeholder">Время еще не пришло...</span>
                 </div>
             </div>
         </div>
 
-        <!-- Нижняя панель: профиль и колода -->
-    <div class="bottom-bar">
-            <div class="deck-button" onclick="openDeck()">
+        <!-- Нижняя панель -->
+        <div class="bottom-bar">
+            <div class="deck-button" id="open-deck-btn">
                 <img src="assets/стопка.png" class="icon-deck" alt="Колода">
                 <span>Колода</span>
             </div>
+            <div class="player-username" id="username">@username</div>
+        </div>
 
-            <span class="player-username" id="player-user">@username</span>
+        <!-- Экран колоды -->
+        <div class="deck-screen" id="deck-screen">
+            <div class="deck-header">
+                <div class="deck-title-block">
+                    <img src="assets/стопка.png" class="icon-deck-small" alt="Колода">
+                    <h2 id="deck-count">Твоя Колода (0/0)</h2>
+                </div>
+                <button class="btn-close-deck" id="close-deck-btn">✕</button>
+            </div>
+            <div class="deck-grid" id="deck-grid">
+                <!-- Карточки будут генерироваться через JS -->
+            </div>
+        </div>
+
+        <!-- Модальное окно карты (Предпросмотр / Сжигание) -->
+        <div class="card-modal" id="card-modal">
+            <div class="modal-content">
+                <div class="modal-card-placeholder" id="modal-card-zone"></div>
+                <div class="modal-actions">
+                    <button class="btn-modal btn-keep" id="modal-close">В колоду</button>
+                    <button class="btn-modal btn-burn" id="modal-burn">Сжечь</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Модальное окно награды и сжигания -->
-    <div class="card-modal" id="card-modal">
-        <div class="modal-content">
-            <div class="modal-card-placeholder" id="modal-card-inside">
-                <!-- Сюда клонируется карта -->
-            </div>
-            <div class="modal-actions">
-                <button class="btn-modal btn-keep" onclick="closeModal()">В колоду</button>
-                <button class="btn-modal btn-burn" onclick="burnAwardedCard()">Сжечь</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Экран просмотра всей коллекции (Колоды) -->
-    <div class="deck-screen" id="deck-screen">
-        <div class="deck-header">
-            <div class="deck-title-block">
-                <img src="assets/стопка.png" class="icon-deck-small" alt="Колода">
-                <h2>Твоя Колода (<span id="deck-count">0/0</span>)</h2>
-            </div>
-            <button class="btn-close-deck" onclick="closeDeck()">✕</button>
-        </div>
-        <div class="deck-grid" id="deck-grid">
-            <!-- Карты генерируются динамически -->
-        </div>
-    </div>
-    
-    <script src="cards.js" defer></script>
-    <script src="script.js" defer></script> 
+    <script src="app.js"></script>
 </body>
-
 </html>
