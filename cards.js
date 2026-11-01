@@ -164,22 +164,30 @@ function revealAllCardsWithIllusion(selectedCard, winningCard) {
     }, 900);
 }
 
-function closeModal() {
-    if (lastAwardedCard) {
-        const id = lastAwardedCard.id;
-        userInventory[id] = (userInventory[id] || 0) + 1;
-        
-        if (typeof sendNewCardToServer === 'function') {
-            sendNewCardToServer(id, lastAwardedCard.title, lastAwardedCard.rarity);
-        }
-    }
+// Замените функцию в cards.js на эту:
+async function closeModal() {
     cardModal.style.opacity = '0';
-    setTimeout(() => {
+    setTimeout(async () => {
         cardModal.style.display = 'none';
-        cooldownSeconds = 4 * 3600; 
-        if (typeof startTimer === 'function') startTimer();
+        
+        // Вместо жестких 4 часов — шлем запрос на сервер
+        const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/update-cooldown?points=${playerCoins}`, {
+                method: "POST",
+                headers: { "X-Telegram-Init-Data": initData }
+            });
+            if (res.ok) {
+                // Сразу перерисовываем данные, дергая загрузку с сервера
+                await loadGameDataFromServer();
+            }
+        } catch(e) {
+            cooldownSeconds = 4 * 3600; // Резервный вариант, если сеть упала
+            startTimer();
+        }
     }, 400);
 }
+
 
 function burnAwardedCard() {
     const cardToBurn = modalInside.querySelector('.card-container');
