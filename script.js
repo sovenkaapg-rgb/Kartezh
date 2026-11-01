@@ -1,11 +1,12 @@
-// Адрес вашего Flask-бэкенда
+// Адрес вашего Flask-бэкенда (Для локального теста - localhost, для продакшена - pythonanywhere)
 const BACKEND_URL = "https://retrogule.pythonanywhere.com"; 
 
+// Переменная объявляется ОДИН раз для всего проекта здесь
 const playerUserElement = document.getElementById('player-user');
 let tgUserId = null;
 let tgUsername = "Путник";
 
-// Глобальные переменные экономики
+// Глобальные переменные экономики, синхронизированные со структурами бота
 let playerCoins = 0; 
 let playerAffinity = 0; 
 let cooldownSeconds = 0; 
@@ -15,16 +16,14 @@ const coinCountElement = document.getElementById('coin-count');
 const timeLeftElement = document.getElementById('time-left');
 const buyHourBtn = document.querySelector('.btn-buy-hour');
 
-// --- НОВАЯ ФУНКЦИЯ ИНИЦИАЛИЗАЦИИ TELEGRAM ---
+// --- ФУНКЦИЯ ИНИЦИАЛИЗАЦИИ TELEGRAM ---
 function initializeTelegramApp() {
-    // Проверяем, что скрипт Telegram вообще загружен
     if (window.Telegram && window.Telegram.WebApp) {
         try {
-            // Сообщаем Telegram, что приложение готово к отрисовке
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
 
-            // Проверяем наличие данных пользователя
+            // Проверяем наличие данных пользователя внутри ТГ
             if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 tgUserId = tgUser.id;
@@ -33,7 +32,6 @@ function initializeTelegramApp() {
                 if (playerUserElement) playerUserElement.innerText = tgUsername;
                 console.log("Успешная авторизация ТГ:", tgUsername, tgUserId);
             } else {
-                // Если мы внутри ТГ, но почему-то initData пуст (такое бывает в старых версиях ПК-клиента)
                 setDemoMode("Пустой initData");
             }
         } catch (err) {
@@ -41,7 +39,6 @@ function initializeTelegramApp() {
             setDemoMode("Ошибка инициализации");
         }
     } else {
-        // Если открыли просто в браузере
         setDemoMode("Обычный браузер");
     }
 
@@ -55,17 +52,6 @@ function setDemoMode(reason) {
     tgUsername = "@demo_user";
     if (playerUserElement) playerUserElement.innerText = "@demo_user";
 }
-
-
-// Глобальные переменные экономики, синхронизированные со структурами бота
-let playerCoins = 0; 
-let playerAffinity = 0; 
-let cooldownSeconds = 0; 
-let timerInterval = null;
-
-const coinCountElement = document.getElementById('coin-count');
-const timeLeftElement = document.getElementById('time-left');
-const buyHourBtn = document.querySelector('.btn-buy-hour');
 
 function formatTime(totalSeconds) {
     if (totalSeconds <= 0) return "Можно тянуть!";
@@ -87,10 +73,9 @@ function startTimer() {
             cooldownSeconds--;
             timeLeftElement.innerText = formatTime(cooldownSeconds);
             
-            // 1. ПОВОРОТ КАЖДУЮ МИНУТУ (когда остаток секунд делится на 60)
+            // ПОВОРОТ КАЖДУЮ МИНУТУ
             if (cooldownSeconds % 60 === 0 && hourglassImg) {
                 hourglassImg.classList.add('flip-hourglass');
-                // Спустя 1 секунду (время анимации в CSS) убираем класс, чтобы зафиксировать часы
                 setTimeout(() => {
                     hourglassImg.classList.remove('flip-hourglass');
                 }, 1000);
@@ -124,7 +109,6 @@ async function buyCooldownReduction() {
     playerCoins -= REDUCTION_COST;
     if (coinCountElement) coinCountElement.innerText = playerCoins;
     
-    // 2. ПОВОРОТ ПРИ ПОКУПКЕ ВРЕМЕНИ (с точно таким же триггером и сбросом)
     const hourglassImg = document.querySelector('.icon-hourglass');
     if (hourglassImg) {
         hourglassImg.classList.add('flip-hourglass');
@@ -150,7 +134,6 @@ async function buyCooldownReduction() {
         changeBotSpeech(BOT_PHRASES.buy_hour);
     }
 }
-
 
 function updateAffinityUI() {
     const affPercent = document.getElementById('affinity-percent');
@@ -178,13 +161,7 @@ async function sendNewCardToServer(cardId, cardTitle, rarity) {
 
 // Загрузка профиля игрока и карт из Flask
 async function loadGameDataFromServer() {
-    // ВАЖНО: Берем полную строчку initData, а не только объект user
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
-    
-    // Если мы в телеграме, но initData пустой (бывает при сбоях WebView)
-    if (!initData && window.Telegram && window.Telegram.WebApp) {
-        console.warn("Telegram WebApp запущен, но initData пуст. Перезапустите Mini App.");
-    }
 
     try {
         const cardsResponse = await fetch(`${BACKEND_URL}/api/cards-database`, {
@@ -202,8 +179,7 @@ async function loadGameDataFromServer() {
             playerAffinity = profile.affinity;
             userInventory = profile.inventory;
             
-            // ИСПРАВЛЕНО: Если мы получили реальный username от ТГ (переменная инициализирована вверху файла)
-            // выводим его. Иначе берем то, что прислал бэкенд.
+            // Если мы получили реальный username от ТГ, выводим его
             if (playerUserElement) {
                 playerUserElement.innerText = tgUserId !== 123456789 ? tgUsername : "@demo_user";
             }
@@ -229,7 +205,7 @@ async function loadGameDataFromServer() {
             startTimer();
         }
     } catch (error) {
-        console.log("Бэкенд Flask отдыхает. Включен автономный демо-режим.", error);
+        console.log("Бэкенд Flask отдыхает. Включен автономный демо-режим.");
         ALL_GAME_CARDS = [
             { id: 1, title: "Стул", rarity: "обыч", image_url: "assets/deck_texture.png", point_value: 10 },
             { id: 2, title: "Самовар", rarity: "редкая", image_url: "assets/deck_texture.png", point_value: 25 },
@@ -253,13 +229,12 @@ async function saveResourcesToServer() {
     }
 }
 
+// Запуск инициализации при загрузке страницы
 window.addEventListener('DOMContentLoaded', () => {
     if (buyHourBtn) buyHourBtn.addEventListener('click', buyCooldownReduction);
     
-    // Вместо мгновенного вызова loadGameDataFromServer, 
-    // даем системе 150 миллисекунд на гарантированное получение данных от API Telegram
+    // Небольшая задержка, чтобы Telegram WebApp точно успел подгрузить свойства инвентаря
     setTimeout(() => {
         initializeTelegramApp();
     }, 150);
 });
-
