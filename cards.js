@@ -128,6 +128,12 @@ function revealAllCardsWithIllusion(selectedCard, winningCard) {
         const rarityDiv = card.querySelector('.card-rarity');
         
         let currentCardData;
+
+        // Отправляем карту в базу данных только один раз — для выбранной карты
+        if (card === selectedCard) {
+            sendNewCardToServer(winningCard.id);
+        }
+        
         if (card === selectedCard) {
             currentCardData = winningCard;
             card.classList.add('flipped');
@@ -155,7 +161,7 @@ function revealAllCardsWithIllusion(selectedCard, winningCard) {
 
     setTimeout(() => {
         const clonedCard = selectedCard.cloneNode(true);
-        clonedCard.classList.remove('flipped');
+        clonedCard.classList.remove('flipped', 'card-leave-right');
         clonedCard.classList.add('modal-view');
         modalInside.innerHTML = '';
         modalInside.appendChild(clonedCard);

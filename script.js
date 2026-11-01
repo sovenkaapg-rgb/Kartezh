@@ -142,8 +142,7 @@ function updateAffinityUI() {
     if (affFill) affFill.style.width = `${playerAffinity}%`;
 }
 
-// Отправка полученной карты на Flask сервер
-async function sendNewCardToServer(cardId, cardTitle, rarity) {
+async function sendNewCardToServer(cardId) {
     const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
     try {
         await fetch(`${BACKEND_URL}/api/add-card`, {
@@ -152,12 +151,13 @@ async function sendNewCardToServer(cardId, cardTitle, rarity) {
                 "X-Telegram-Init-Data": initData,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ card_id: parseInt(cardId), card_title: cardTitle, rarity: rarity })
+            body: JSON.stringify({ card_id: int(cardId) }) // отправляем только ID карты, сервер сам всё найдет
         });
     } catch (e) {
-        console.error("Не удалось сохранить карту в БД через Flask:", e);
+        console.error("Не удалось сохранить карту в БД:", e);
     }
 }
+
 
 // Загрузка профиля игрока и карт из Flask
 async function loadGameDataFromServer() {
