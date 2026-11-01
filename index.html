@@ -2,97 +2,110 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Картеж - Mini App</title>
-    <!-- Подключаем официальный скрипт Telegram WebApp -->
-    <script src="https://telegram.org"></script>
-    <script src="https://unpkg.com"></script>
-     <script src="app.js"></script>
     <link rel="stylesheet" href="style.css">
+    <!-- Подключаем Telegram WebApp SDK -->
+    <script src="https://telegram.org"></script>
 </head>
 <body>
 
     <div class="game-container">
         
-        <!-- ТОП БАР (Профиль загружается сразу) -->
+        <!-- ТОП БАР (Баланс, Лояльность, Таймер) -->
         <div class="top-bar">
             <div class="top-left-group">
+                <!-- Баланс монет -->
                 <div class="coin-balance">
-                    <img src="assets/coins_pile.png" class="icon-coins" alt="Монеты">
-                    <!-- ID для динамического баланса -->
-                    <span id="player-coins">0</span> 🪙
+                    <img src="assets/coins_pile.png" alt="Монеты" class="icon-coins">
+                    <span id="balance-value">0</span> 🪙
                 </div>
-                <div class="player-username" id="player-name">Загрузка...</div>
+                
+                <!-- Шкала лояльности (отношения) -->
+                <div class="affinity-block">
+                    <div class="affinity-header">
+                        <span>Отношение борга</span>
+                    </div>
+                    <div class="affinity-bar-bg">
+                        <div class="affinity-bar-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
             </div>
-            
+
+            <!-- Блок таймера кулдауна -->
             <div class="timer-block">
-                <img src="assets/hourglass.png" class="icon-hourglass" id="hourglass-img" alt="Таймер">
+                <img src="assets/hourglass.png" alt="Таймер" class="icon-hourglass">
                 <div class="timer-info">
-                    <!-- ID для вывода времени КД -->
-                    <div id="time-left">00ч 00м 00с</div>
-                    <button class="btn-buy-hour" id="btn-buy-hour">Купить час (-20 🪙)</button>
+                    <span id="time-left">00ч 00м 00с</span>
+                    <button class="btn-buy-hour">Купить час (-20 🪙)</button>
                 </div>
             </div>
         </div>
 
+        <!-- ДИАЛОГ С БОТОМ -->
+        <div class="bot-speech-bubble">
+            Приветствую, путник... Испытаешь удачу? Нажми на круг, чтобы призвать карты...
+        </div>
         <!-- ИГРОВОЕ ПОЛЕ -->
         <div class="game-field">
-            <!-- Текст бота -->
-            <div class="bot-speech-bubble" id="bot-bubble">
-                Приветствую, путник... Испытаешь удачу?
-            </div>
+            
+            <!-- Аватар персонажа (наплывает на круг из-за отрицательного margin в CSS) -->
+            <img src="assets/бот.png" alt="Бот" class="bot-character">
 
-            <!-- Зона генерации трех карт -->
-            <div class="magic-ring-container" id="main-trigger">
-                <img src="assets/magic_circle.png" class="magic-ring-bg" alt="Магический круг">
-                <div class="cards-drop-zone" id="cards-zone">
-                    <!-- Сюда JS будет выкладывать 3 карты -->
+            <!-- Контейнер интерактивного вызова карт -->
+            <div class="magic-ring-container">
+                <!-- Магический круг (задний фон и триггер клика для вызова) -->
+                <img src="assets/magic_circle.png" alt="Магический круг" class="magic-ring-bg">
+                
+                <!-- Сюда JS генерирует 3 карты. Изначально внутри плейсхолдер -->
+                <div class="cards-drop-zone">
                     <div class="zone-placeholder">Нажми на круг, чтобы призвать карты...</div>
                 </div>
             </div>
 
-            <!-- Аватар бота -->
-            <img src="assets/бот.png" class="bot-character" alt="Бот">
-        </div>
-
-        <!-- НИЖНЯЯ ПАНЕЛЬ -->
-        <div class="bottom-bar">
-            <div class="deck-button" id="open-deck-btn">
-                <img src="assets/стопка.png" class="icon-deck" alt="Колода">
-                <span>Колода</span>
-            </div>
-
-            <!-- Шкала лояльности -->
-            <div class="affinity-block">
-                <div class="affinity-header">
-                    <span>Лояльность</span>
-                    <span id="affinity-pct">0%</span>
-                </div>
-                <div class="affinity-bar-bg">
-                    <div class="affinity-bar-fill" id="affinity-fill" style="width: 0%;"></div>
-                </div>
-                <div class="affinity-header" style="justify-content: center; margin-top: 2px;">
-                    <span id="affinity-label">едва замечаю</span>
-                </div>
+            <!-- Встроенная зона ответов лояльности (управляется вашим CSS для квизов) -->
+            <div class="quiz-options-inline">
+                <button class="btn-quiz-inline" id="quiz-ans-a">Вариант А</button>
+                <button class="btn-quiz-inline" id="quiz-ans-b">Вариант Б</button>
+                <button class="btn-quiz-skip">✕</button>
             </div>
         </div>
-
-        <!-- ЭКРАН КОЛОДЫ (Изначально скрыт) -->
-        <div class="deck-screen" id="deck-screen">
+        <!-- ЭКРАН КОЛОДЫ (ОТКРЫВАЕТСЯ НА ВЕСЬ ЭКРАН) -->
+        <div class="deck-screen">
             <div class="deck-header">
                 <div class="deck-title-block">
-                    <img src="assets/стопка.png" class="icon-deck-small" alt="Колода">
-                    <h2 id="deck-title-count">Твоя Колода (0/0)</h2>
+                    <img src="assets/стопка.png" alt="Колода" class="icon-deck-small">
+                    <h2>Твоя Колода</h2>
                 </div>
-                <button class="btn-close-deck" id="close-deck-btn">✕</button>
+                <!-- Кнопка закрытия экрана коллекции -->
+                <button class="btn-close-deck">✕</button>
             </div>
-            <!-- Сетка для ВСЕХ карт из базы данных -->
-            <div class="deck-grid" id="deck-grid"></div>
+
+            <!-- Сетка для карт. JS заполнит её ВСЕМИ картами игры. 
+                 Заблокированные получат класс .card-locked -->
+            <div class="deck-grid">
+                <!-- Карточки генерируются динамически через JS -->
+            </div>
         </div>
 
-    </div>
+        <!-- НИЖНЯЯ ПАНЕЛЬ ПРИЛОЖЕНИЯ -->
+        <div class="bottom-bar">
+            <!-- Кнопка для открытия экрана коллекции -->
+            <div class="deck-button">
+                <img src="assets/стопка.png" alt="Колода" class="icon-deck">
+                <span>Моя Колода</span>
+            </div>
 
-    <!-- Подключаем фронтенд логику -->
-   
+            <!-- Имя игрока из Telegram Telegram WebApp SDK -->
+            <div class="player-username">@Путник</div>
+
+            <!-- Вотермарк / Ссылка на канал проекта -->
+            <a href="https://t.me/SovenkaArt" class="tg-watermark" target="_blank">SovenkArt</a>
+        </div>
+
+    </div> <!-- Конец .game-container -->
+
+    <!-- Подключаем фронтенд логику (скрипт из предыдущего шага) -->
+    <script src="app.js"></script>
 </body>
 </html>
