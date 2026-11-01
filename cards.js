@@ -329,4 +329,62 @@ window.addEventListener('DOMContentLoaded', () => {
         closeBtn.addEventListener('click', closeDeck);
     }
 });
+// Функция загрузки викторины лояльности с вашего живого сервера
+async function loadBotQuizFromServer() {
+    const quizZone = document.getElementById('quiz-zone');
+    if (!quizZone) return;
+
+    const initData = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.initData : "";
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/bot-quiz`, {
+            headers: { "X-Telegram-Init-Data": initData }
+        });
+        
+        if (response.ok) {
+            const quizData = await response.json();
+            
+            // Выводим текст вопроса в диалоговое облако бота
+            changeBotSpeech(quizData.question);
+            
+            // Очищаем старые кнопки и генерируем новые варианты ДА / НЕТ
+            quizZone.innerHTML = '';
+            quizZone.style.display = 'flex'; // Показываем блок с кнопками
+            
+            quizData.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-quiz-inline';
+                btn.innerText = opt.text;
+                
+                btn.onclick = async () => {
+                    // При клике бот отвечает своей заготовленной фразой (reply)
+                    changeBotSpeech(opt.reply);
+                    
+                    // Обновляем лояльность локально
+                    playerAffinity = Math.max(0, Math.min(100, playerAffinity + opt.affinityChange));
+                    if (typeof updateAffinityUI === 'function') updateAffinityUI();
+                    
+                    // Прячем кнопки ответов после клика
+                    quizZone.style.display = 'none';
+                    
+                    // Сохраняем новую лояльность на сервер
+                    if (typeof saveResourcesToServer === 'function') saveResourcesToServer();
+                };
+                quizZone.appendChild(btn);
+            });
+        }
+    } catch (e) {
+        console.error("Не удалось подгрузить опрос лояльности:", e);
+    }
+}
+
+// Запускаем опрос лояльности при открытии игры, если кулдаун еще идет
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (cooldownSeconds > 0) {
+            loadBotQuizFromServer();
+        }
+    }, 1000); // Небольшая задержка после загрузки профиля
+});
+
 
