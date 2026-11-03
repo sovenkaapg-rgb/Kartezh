@@ -179,7 +179,7 @@ export function openModal(card) {
 
     // Обработчик мгновенного сжигания карты (БЕЗ задержек и подвисаний)
     const burnBtn = realCardModal.querySelector('.btn-burn');
-    if (burnBtn) {
+        if (burnBtn) {
         burnBtn.textContent = `🔥 Сжечь (+${card.point_value || 10} 🪙)`;
         burnBtn.onclick = async () => {
             const modalViewCard = realCardModal.querySelector('.modal-card-placeholder .card-container');
@@ -194,21 +194,24 @@ export function openModal(card) {
                 modalActions.style.opacity = '0';
             }
             
-            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            
             try {
-                const response = await fetch(`${API_URL}/burn-card/${playerProfile.user_id}/${card.id}`, { method: 'POST' });
+                // Запрос отправляется на правильный ID игрока из сохраненного профиля
+                const response = await fetch(`${API_URL}/api/burn-card/${playerProfile.user_id}/${card.id}`, { method: 'POST' });
                 if (response.ok) { 
                     const resData = await response.json();
                     
                     playerProfile.points = resData.new_points; 
                     if (DOM.coinBalanceEl) DOM.coinBalanceEl.innerHTML = `${playerProfile.points} 🪙`;
 
+                    // Важно: если окно колоды открыто, мгновенно перерисовываем сетку карт с новыми количествами x
                     const deckScreen = document.querySelector('.deck-screen');
-                    if (deckScreen && deckScreen.style.display === 'flex') {
+                    if (deckScreen && (deckScreen.style.display === 'flex' || deckScreen.style.opacity === '1')) {
                         const { renderDeckGrid } = await import('./deck.js');
                         await renderDeckGrid();
                     }
+                } else {
+                    const err = await response.json();
+                    alert(err.detail || "Не удалось сжечь карту");
                 }
             } catch (e) { 
                 console.error("Ошибка при сжигании карты:", e); 
@@ -221,12 +224,16 @@ export function openModal(card) {
                 setTimeout(() => {
                     realCardModal.style.display = 'none';
                     if (modalActions) modalActions.style.opacity = '1'; 
-                    DOM.cardsDropZone.innerHTML = '<div class="zone-placeholder">Нажми на круг...</div>';
+                    // Если мы сжигали карту главного экрана, возвращаем заглушку
+                    if (DOM.cardsDropZone.querySelector('.card-burn-animation')) {
+                        DOM.cardsDropZone.innerHTML = '<div class="zone-placeholder">Нажми на круг...</div>';
+                    }
                     isDrawing.value = false;
                 }, 200);
             }, 600);
         };
     }
+
 }
 
 // Принудительное закрытие модального окна

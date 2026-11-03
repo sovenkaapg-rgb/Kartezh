@@ -30,33 +30,40 @@ async function loginWithNickname(usernameStr) {
         if (!response.ok) {
             const errorData = await response.json();
             alert("Ошибка входа: " + (errorData.detail || "Неизвестная ошибка"));
-            localStorage.removeItem("saved_game_username"); // Сбрасываем плохой ник
+            localStorage.removeItem("saved_game_username");
             if (DOM.authOverlay) DOM.authOverlay.style.display = 'flex';
             return;
         }
 
-        const playerData = await response.json();
-        console.log("Успешный вход! Живые данные игрока:", playerData);
+        let playerData = await response.json();
         
-        // Запоминаем профиль глобально в приложении
+        // ВАЖНО: Flask возвращает res.data (который в Python является списком/массивом)
+        // Если прилетел массив, берем его первый элемент
+        if (Array.isArray(playerData)) {
+            playerData = playerData[0];
+        }
+
+        console.log("Успешный вход! Данные игрока:", playerData);
+        
+        // Записываем профиль во все глобальные переменные, чтобы deck.js их видел
         setPlayerProfile(playerData);
         setUser({ id: playerData.user_id, username: playerData.username });
 
-        // Сохраняем в память устройства «навсегда»
+        // Сохраняем ник в память телефона
         localStorage.setItem("saved_game_username", playerData.username);
         
-        // Обновляем весь игровой интерфейс и запускаем таймеры
         updateUI();
         startCooldownTimer();
+        initParallax(); 
 
-        // Прячем оверлей входа
         if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
 
     } catch (error) {
         console.error("Критическая ошибка сети при авторизации:", error);
-        alert("Не удалось связаться с игровым сервером. Попробуйте позже.");
+        alert("Не удалось связаться с игровым сервером.");
     }
 }
+
 function updateUI() {
     if (!playerProfile) return;
     if (DOM.coinBalanceEl) DOM.coinBalanceEl.innerHTML = `${playerProfile.points} 🪙`;
