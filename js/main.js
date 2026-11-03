@@ -3,27 +3,46 @@ import { checkCooldownStatus } from './cards.js';
 import { renderDeckGrid } from './deck.js';
 
 async function startApp() {
-    if (tg?.initDataUnsafe?.user) {
-        tg.ready(); tg.expand();
-        setUser({ id: tg.initDataUnsafe.user.id, username: tg.initDataUnsafe.user.username || tg.initDataUnsafe.user.first_name });
-        await loginAndInitGame();
+    const telegramSdk = window.Telegram?.WebApp;
+    
+    // Проверяем, запущены ли мы в реальном ТГ с initData
+    if (telegramSdk && telegramSdk.initData) { 
+        telegramSdk.ready(); 
+        telegramSdk.expand();
+        await loginWithTelegram(telegramSdk.initData);
     } else {
+        // Если открыли в обычном браузере на ПК — показываем форму аварийного входа
         if (DOM.authOverlay) DOM.authOverlay.style.display = 'flex';
     }
 }
 
-export async function loginAndInitGame() {
-    if (!user.username) return;
+async function loginWithTelegram(initDataStr) {
     try {
         if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
-        const response = await fetch(`${API_URL}/profile/${user.username}`);
-        const data = await response.json();
-        setPlayerProfile(Array.isArray(data) ? data : data);
         
-        updateUI();
-        startCooldownTimer();
-        setupEventListeners();
-    } catch (e) { console.error(e); }
+        const response = await fetch(`${API_URL}/auth/telegram`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: initDataStr })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            const profile = Array.isArray(data) ? data[0] : data;
+            setPlayerProfile(profile);
+            setUser({ id: profile.user_id, username: profile.username });
+            
+            updateUI();
+            startCooldownTimer();
+            setupEventListeners();
+            initParallax(); // Инициализация 3D эффекта
+        } else {
+            alert("Ошибка авторизации: " + data.detail);
+        }
+    } catch (e) { 
+        console.error(e); 
+        alert("Не удалось связаться с сервером");
+    }
 }
 
 function updateUI() {
@@ -36,7 +55,6 @@ function updateUI() {
         DOM.affinityLabelEl.textContent = `${l} (${aff})`;
     }
     const nameEl = document.querySelector('.fixed-player-username');
-
     if (nameEl) nameEl.textContent = `@${playerProfile.username}`;
 }
 
@@ -79,9 +97,12 @@ function setupEventListeners() {
             DOM.hourglassIcon.addEventListener('animationend', () => DOM.hourglassIcon.classList.remove('flip-hourglass'), { once: true });
 
             try {
-                const response = await fetch(`${API_URL}/buy-hour/${playerProfile.username}`, { method: 'POST' });
+                const response = await fetch(`${API_URL}/buy-hour/${playerProfile.user_id}`, { method: 'POST' });
                 if (response.ok) {
-                    await loginAndInitGame();
+                    const data = await response.json();
+                    playerProfile.points = data.points;
+                    playerProfile.last_pack_opened = data.last_pack_opened;
+                    updateUI();
                 } else { 
                     const res = await response.json();
                     alert(res.detail); 
@@ -91,10 +112,36 @@ function setupEventListeners() {
     }
 }
 
+// Эффект параллакса при наклоне
+function initParallax() {
+    const bgLayer = document.querySelector('.parallax-bg-layer');
+    const botContainer = document.querySelector('.bot-character-container');
+    if (!bgLayer || !botContainer) return;
+
+    window.addEventListener('deviceorientation', (event) => {
+        let x = event.gamma || 0; 
+        let y = event.beta || 0;  
+
+        if (x > 30) x = 30; if (x < -30) x = -30;
+        if (y > 60) y = 60; if (y < 20) y = 20;
+
+        const bgX = (x / 30) * -15;
+        const bgY = ((y - 40) / 20) * -15;
+        const botX = (x / 30) * 8;
+
+        bgLayer.style.transform = `scale(1.1) translate(${bgX}px, ${bgY}px)`;
+        botContainer.style.transform = `translateX(${botX}px)`;
+    });
+}
+
+// Заглушка ручного входа для тестов на ПК
 if (DOM.manualLoginBtn) {
-    DOM.manualLoginBtn.addEventListener('click', () => {
+    DOM.manualLoginBtn.addEventListener('click', async () => {
         let name = DOM.manualInput.value.trim().replace('@', '');
-        if (name) { setUser({ id: null, username: name }); loginAndInitGame(); }
+        if (!name) return;
+        
+        const fakeInitData = `user=${encodeURIComponent(JSON.stringify({id: 123456789, username: name}))}&hash=mock`;
+        await loginWithTelegram(fakeInitData);
     });
 }
 

@@ -1,9 +1,10 @@
-export const API_URL = "https://retrogule.pythonanywhere.com/api";
+export const API_URL = "http://localhost:8000/api";
 
 export const tg = window.Telegram?.WebApp || null;
 export let user = { id: null, username: null };
 export let playerProfile = null;
 export const isDrawing = { value: false }; 
+export const initData = window.Telegram?.WebApp?.initData || "";
 
 export function setPlayerProfile(data) { playerProfile = data; }
 export function setUser(data) { user = data; }

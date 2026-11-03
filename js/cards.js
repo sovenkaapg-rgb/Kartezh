@@ -1,6 +1,7 @@
 import { API_URL, DOM, tg, playerProfile, isDrawing } from './config.js';
-import { loginAndInitGame } from './main.js';
 
+
+// Проверка статуса таймера и отрисовка закрытых карт
 export function checkCooldownStatus() {
     if (!playerProfile) return;
     if (DOM.timeLeftEl.textContent === "Готово!" || DOM.timeLeftEl.textContent === "00ч 00м 00с") {
@@ -10,6 +11,7 @@ export function checkCooldownStatus() {
     }
 }
 
+// Отрисовка 3-х закрытых карт для выбора игроком
 function renderThreeClosedCards() {
     DOM.cardsDropZone.innerHTML = '';
     isDrawing.value = false;
@@ -24,35 +26,35 @@ function renderThreeClosedCards() {
     if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Выбирай с умом... или хватай любую.";
 }
 
+// Логика клика по закрытой карте, запрос к бэкенду и анимация полета
 async function handleCardClick(clickedCard) {
     if (isDrawing.value) return; 
     isDrawing.value = true;
 
-    // Легкий щелчок при касании рубашки
     if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium'); 
 
     try {
-        const response = await fetch(`${API_URL}/draw-card/${playerProfile.username}`, { method: 'POST' });
+        const response = await fetch(`${API_URL}/draw-card/${playerProfile.user_id}`, { method: 'POST' });
         const result = await response.json();
 
         if (result.status === "success") {
             const allCards = DOM.cardsDropZone.querySelectorAll('.card-container');
             
-            // 1. Лишние карты мгновенно исчезают
+            // 1. Оставшиеся карты плавно смахиваются вправо
             allCards.forEach(card => {
                 if (card !== clickedCard) {
-                    card.classList.add('card-fade-out-fast');
+                    card.classList.add('card-leave-right');
                     card.addEventListener('animationend', () => card.remove());
                 }
             });
 
-            // 2. Включаем эпичный полет РУБАШКОЙ ВВЕРХ
+            // 2. Выбранная карта центрируется и приближается рубашкой вверх
             clickedCard.classList.remove('closed-choice-card');
             clickedCard.classList.add('card-zoom-and-fly');
 
             if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Хм-м... Давай посмотрим, что тебе уготовила судьба!";
 
-            // 3. Ждем 750мс (пока карта полностью долетит и затормозит в воздухе)
+            // 3. Ждем ровно 600мс (длительность анимации полета)
             setTimeout(() => {
                 const isLegendary = result.card.rarity && result.card.rarity.toLowerCase() === 'лега';
                 const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
@@ -70,19 +72,20 @@ async function handleCardClick(clickedCard) {
                         </div>
                     </div>`;
 
-                // 4. Сочный переворот с вибрацией "УДАРА"
+                // 4. Запускаем плавный 3D-переворот лицом к игроку
                 clickedCard.classList.add('flipped');
-                if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success'); // Двойной победный виброотклик
+                if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success'); 
 
-                // 5. Даем игроку 1.5 секунды рассмотреть карту во весь экран, и только потом мягко открываем 3D модалку с кнопками
+                // 5. Открываем модалку после того, как игрок рассмотрит карту на столе
                 setTimeout(() => {
                     openModal(result.card);
-                }, 1500);
+                }, 1200);
 
-            }, 750);
+            }, 600);
 
-            // Обновляем баланс монет на заднем плане
-            await loginAndInitGame();
+            // Мягко обновляем баланс монет на заднем фоне
+            playerProfile.points = result.points_updated || playerProfile.points;
+            if (DOM.coinBalanceEl) DOM.coinBalanceEl.innerHTML = `${playerProfile.points} 🪙`;
 
         } else {
             alert(result.detail || "Ошибка призыва!");
@@ -93,8 +96,7 @@ async function handleCardClick(clickedCard) {
         isDrawing.value = false;
     }
 }
-
-
+// Открытие модального окна с детальной информацией о карте
 export function openModal(card) {
     const realCardModal = document.querySelector('.card-modal') || document.getElementById('card-modal');
     if (!realCardModal) return;
@@ -121,42 +123,31 @@ export function openModal(card) {
             </div>`;
     }
 
-    // Включаем показ модалки СРАЗУ
     realCardModal.style.setProperty('display', 'flex', 'important');
     realCardModal.style.setProperty('z-index', '9999', 'important');
     setTimeout(() => realCardModal.style.opacity = '1', 10);
 
-    // Активируем 3D-покачивание с задержкой, когда карта точно появилась на экране
+    // Активация 3D наклона при движении пальца/мышки
     setTimeout(() => {
         const tiltCard = realCardModal.querySelector('.modal-view');
         if (!tiltCard) return;
 
         let ticking = false;
-
         const updateTilt = (clientX, clientY) => {
             const rect = tiltCard.getBoundingClientRect();
             const x = clientX - rect.left - rect.width / 2;
             const y = clientY - rect.top - rect.height / 2;
-            
-            // 1. Считаем наклон, уменьшив базовую чувствительность (делим на 2)
             let rotateX = (-y / (rect.height / 2)) * 12;
             let rotateY = (x / (rect.width / 2)) * 12;
-            
-            // 2. ЖЕСТКОЕ ОГРАНИЧЕНИЕ (CLAMP): карта физически не сможет наклониться больше чем на 12 градусов в любую сторону!
             rotateX = Math.max(-12, Math.min(12, rotateX));
             rotateY = Math.max(-12, Math.min(12, rotateY));
-            
-            // 3. Применяем трансформацию. Больше никаких переворотов изнанкой наружу!
             tiltCard.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
             ticking = false;
         };
 
-
-
         const handleMove = (e) => {
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
             if (!ticking) {
                 requestAnimationFrame(() => updateTilt(clientX, clientY));
                 ticking = true;
@@ -164,61 +155,55 @@ export function openModal(card) {
         };
 
         const resetTilt = () => {
-            // Мягко возвращаем карту в идеально ровное положение
             tiltCard.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)`;
         };
 
-
-        // Слушатели для ПК-мышки
         tiltCard.addEventListener('mousemove', handleMove);
         tiltCard.addEventListener('mouseleave', resetTilt);
-        
-        // Слушатели для Telegram (палец на телефоне)
         tiltCard.addEventListener('touchmove', handleMove, { passive: true });
         tiltCard.addEventListener('touchend', resetTilt);
     }, 150);
 
-    // Кнопки Назад и Сжечь
+    // Обработчик кнопки Оставить (Назад)
     const keepBtn = realCardModal.querySelector('.btn-keep');
     if (keepBtn) {
         keepBtn.onclick = () => {
             realCardModal.style.opacity = '0';
-            setTimeout(() => realCardModal.style.display = 'none', 400);
+            setTimeout(() => {
+                realCardModal.style.display = 'none';
+                DOM.cardsDropZone.innerHTML = '<div class="zone-placeholder">Нажми на круг...</div>';
+                isDrawing.value = false;
+            }, 400);
         };
     }
 
+    // Обработчик мгновенного сжигания карты (БЕЗ задержек и подвисаний)
     const burnBtn = realCardModal.querySelector('.btn-burn');
     if (burnBtn) {
         burnBtn.textContent = `🔥 Сжечь (+${card.point_value || 10} 🪙)`;
         burnBtn.onclick = async () => {
-            
-            // 1. Находим большую карту в модалке и карту на столе, поджигаем ИХ ОБЕИХ в зуме
             const modalViewCard = realCardModal.querySelector('.modal-card-placeholder .card-container');
             if (modalViewCard) modalViewCard.classList.add('card-burn-animation');
             
             const currentCard = DOM.cardsDropZone.querySelector('.card-container');
             if (currentCard) currentCard.classList.add('card-burn-animation');
 
-            // 2. МГНОВЕННО прячем только блок с кнопками "Назад" и "Сжечь", чтобы они не висели
             const modalActions = realCardModal.querySelector('.modal-actions');
             if (modalActions) {
-                modalActions.style.transition = 'opacity 0.15s ease';
+                modalActions.style.transition = 'opacity 0.15s';
                 modalActions.style.opacity = '0';
             }
             
             if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             
-            // 3. Быстро отправляем запрос на бэкенд Python
             try {
-                const response = await fetch(`${API_URL}/burn-card/${playerProfile.username}/${card.id}`, { 
-                    method: 'POST' 
-                });
-                
+                const response = await fetch(`${API_URL}/burn-card/${playerProfile.user_id}/${card.id}`, { method: 'POST' });
                 if (response.ok) { 
-                    // Обновляем монеты на верхнем баре
-                    await loginAndInitGame(); 
+                    const resData = await response.json();
                     
-                    // Если мы в колоде — перерисовываем сетку карт под закрывающейся модалкой
+                    playerProfile.points = resData.new_points; 
+                    if (DOM.coinBalanceEl) DOM.coinBalanceEl.innerHTML = `${playerProfile.points} 🪙`;
+
                     const deckScreen = document.querySelector('.deck-screen');
                     if (deckScreen && deckScreen.style.display === 'flex') {
                         const { renderDeckGrid } = await import('./deck.js');
@@ -229,28 +214,22 @@ export function openModal(card) {
                 console.error("Ошибка при сжигании карты:", e); 
             }
             
-            // 4. Закрываем само темное окно ровно тогда, когда карта в зуме превратится в пепел (600мс)
             setTimeout(() => {
                 realCardModal.style.transition = 'opacity 0.2s ease';
                 realCardModal.style.opacity = '0';
                 
                 setTimeout(() => {
                     realCardModal.style.display = 'none';
-                    // Возвращаем видимость кнопкам для следующего открытия
                     if (modalActions) modalActions.style.opacity = '1'; 
-                    
-                    // Очищаем стол призыва
                     DOM.cardsDropZone.innerHTML = '<div class="zone-placeholder">Нажми на круг...</div>';
                     isDrawing.value = false;
                 }, 200);
-            }, 600); // 600мс карта горит в зуме, на 800мс окно полностью удаляется
+            }, 600);
         };
     }
-
-
 }
 
-
+// Принудительное закрытие модального окна
 export function closeModal() {
     DOM.cardModal.style.opacity = '0';
     setTimeout(() => DOM.cardModal.style.display = 'none', 400);

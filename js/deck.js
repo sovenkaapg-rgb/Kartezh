@@ -11,7 +11,7 @@ export async function renderDeckGrid() {
     realDeckGrid.innerHTML = '';
 
     try {
-        const response = await fetch(`${API_URL}/deck/${playerProfile.username}`);
+        const response = await fetch(`${API_URL}/deck/${playerProfile.user_id}`);
         const data = await response.json();
 
         const allCards = data.all_cards || [];
@@ -23,7 +23,6 @@ export async function renderDeckGrid() {
         }
         allCards.sort((a, b) => a.id - b.id);
         
-
         allCards.forEach(card => {
             const owned = userCards.find(uc => String(uc.card_id) === String(card.id));
             const container = document.createElement('div');
@@ -34,7 +33,7 @@ export async function renderDeckGrid() {
             container.style.position = "relative";
             container.style.pointerEvents = "auto";
             container.style.zIndex = "90";
-            container.setAttribute('data-card-id', card.id);
+            container.setAttribute('data-card-id', card.id); // МУСОРНАЯ СТРОКА УДАЛЕНА
 
             if (owned) {
                 container.innerHTML = `

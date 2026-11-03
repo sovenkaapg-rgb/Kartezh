@@ -5,143 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Картеж - Mini App</title>
 
-    <!-- 1. Главный скрипт Telegram SDK -->
-    <script src="https://telegram.org"></script>
+<!-- Было: <script src="https://telegram.org..."></script> -->
+<!-- Стало: -->
+    <script src="js/telegram-web-app.js"></script>
 
     <!-- 2. Ваши стили -->
     <link rel="stylesheet" href="style.css?v=1">
 </head>
 <body>
+    <div class="main-app-screen">
+    <!-- ВЕРХНИЙ ХУД -->
+    <div class="top-hud-panel">
+        <!-- Левая часть: кулдаун и песочные часы -->
+        <div class="cooldown-box">
+            <img src="assets/hourglass.png" alt="timer" class="icon-hourglass" id="icon-hourglass">
+            <span id="time-left">00ч 00м 00с</span>
+            <button class="btn-buy-hour">Купить час (-20 🪙)</button>
+        </div>
 
-    <div class="game-container">
+        <!-- Правая часть: лояльность и монеты -->
+        <div class="right-stats-group">
+            <div class="affinity-bar-container">
+                <div class="affinity-header">
+                    <span>едва замечаю (15)</span>
+                </div>
+                <div class="affinity-bar-bg">
+                    <div class="affinity-bar-fill" style="width: 15%;"></div>
+                </div>
+            </div>
+            <div class="coin-balance">
+                <img src="assets/coins_pile.png" alt="coins" class="icon-coin">
+                <span>0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ТЕКСТОВАЯ ПОДСКАЗКА БОТА С ТЕМНОЙ ПОДЛОЖКОЙ -->
+    <div class="bot-speech-bubble">Хм-м... Давай посмотрим, что тебе уготовила судьба!</div>
+
+    <!-- ИГРОВОЕ ПОЛЕ (Параллакс, Бот, Стол) -->
+    <div class="game-field">
+        <div class="parallax-bg-layer" style="background-image: url('assets/bg.png');"></div>
         
-        <!-- ===================================================================== -->
-        <!-- 2. ВЕРХНЯЯ ПАНЕЛЬ (СТАТУС-БАР) -->
-        <!-- ===================================================================== -->
-        <div class="top-bar">
-            <div class="top-left-group">
-                <div class="coin-balance">
-                    <!-- Новое название ассета кучи монет -->
-                    <img class="icon-coins" src="assets/coins_pile.png" alt="coins">
-                    <span id="balance">0</span>
-                </div>
-                
-                <!-- Шкала отношений зафиксирована в верхней панели -->
-                <div class="affinity-block" style="margin-top: 5px;">
-                    <div class="affinity-header">
-                        <span id="affinity-label">едва замечаю (15)</span>
-                    </div>
-                    <div class="affinity-bar-bg">
-                        <div class="affinity-bar-fill" style="width: 15%;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="timer-block">
-                <img class="icon-hourglass" src="assets/hourglass.png" alt="timer">
-                <div class="timer-info">
-                    <span id="time-left">00ч 00м 00с</span>
-                    <button class="btn-buy-hour">Купить час (-20 🪙)</button>
-                </div>
-            </div>
+        <div class="bot-character-container">
+            <img class="bot-part-body" src="assets/sf_body.png" alt="Бот">
+            <img class="bot-part-hand" src="assets/sf_hend.png" alt="Рука бота">
         </div>
 
-        <!-- ===================================================================== -->
-        <!-- АВАРТИЙНОЕ ОКНО ЛОГИНА (ПОЯВЛЯЕТСЯ ТОЛЬКО НА ПК) -->
-        <!-- ===================================================================== -->
-        <div id="auth-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(18, 12, 20, 0.95); z-index: 99999; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px;">
-            <h2 style="color: #fff; margin-bottom: 20px; font-family: sans-serif; text-align: center;">Вход в Картеж</h2>
-            <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; text-align: center; margin-bottom: 20px;">Не удалось подключиться к Telegram сессии.<br>Введите ваш Telegram никнейм вручную:</p>
-            
-            <div style="width: 100%; max-width: 280px; display: flex; flex-direction: column; gap: 12px;">
-                <input type="text" id="manual-username" placeholder="Пример: ТвойНик" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #721c24; background: #160f1b; color: #fff; font-size: 1rem; text-align: center; outline: none;">
-                <button id="btn-manual-login" style="width: 100%; padding: 12px; border-radius: 8px; border: none; background: #c0392b; color: #fff; font-weight: bold; cursor: pointer; font-size: 1rem;">Войти в колоду</button>
-            </div>
-        </div>
-
-        <!-- ===================================================================== -->
-        <!-- 3. ИГРОВОЕ ПОЛЕ И ПЕРСОНАЖ БОТА -->
-        <!-- ===================================================================== -->
-        <div class="game-field">
-            <!-- Реплики тёмного мага -->
-            <div class="bot-speech-bubble">
-                Хм-м... Давай посмотрим, что тебе уготовила судьба!
-            </div>
-
-            <!-- Инлайн-квизы лояльности (Да / Нет кнопки) -->
-            <div class="quiz-options-inline">
-                <button class="btn-quiz-inline" data-choice="a">Вариант А</button>
-                <button class="btn-quiz-inline" data-choice="b">Вариант Б</button>
-                <button class="btn-quiz-inline btn-quiz-skip">✕</button>
-            </div>
-
-            <!-- Новое название ассета самого персонажа бота -->
-            <img class="bot-character" src="assets/бот.png" alt="Бот">
-            
-            <!-- Зона магического круга и призыва карт -->
+        <div class="front-table-layer">
+            <img class="table-img" src="assets/table.png" alt="Стол">
             <div class="magic-ring-container">
-                <!-- Новое название ассета магического круга -->
-                <img class="magic-ring-bg" src="assets/magic_circle.png" alt="Магический круг">
-                
                 <div class="cards-drop-zone">
                     <div class="zone-placeholder">Тут будут карты когда придет время</div>
                 </div>
             </div>
         </div>
-
-        <!-- ===================================================================== -->
-        <!-- 6. ЭКРАН КОЛОДЫ (ОТКРЫВАЕТСЯ СНИЗУ ПОВЕРХ ИГРЫ) -->
-        <!-- ===================================================================== -->
-        <div class="deck-screen">
-            <div class="deck-header">
-                <div class="deck-title-block">
-                    <!-- Ассет текстуры колоды в шапке меню коллекции -->
-                    <img class="icon-deck-small" src="assets/deck_texture.png" alt="icon">
-                    <h2>Колода</h2>
-                </div>
-                <button class="btn-close-deck">✕</button>
-            </div>
-            <!-- Сюда JavaScript-модуль deck.js рендерит ваши 6 карт -->
-            <div class="deck-grid"></div>
-        </div>
-
-        <!-- ===================================================================== -->
-        <!-- 7. НИЖНЯЯ ПАНЕЛЬ (АККУРАТНАЯ И ОЧИЩЕННАЯ) -->
-        <!-- ===================================================================== -->
-        <div class="bottom-bar">
-            <!-- Кнопка без иконки — только чистый готический текст -->
-            <div class="deck-button">Моя Колода</div>
-            
-            <!-- Справа водяной знак автора -->
-            <a href="https://t.me" target="_blank" class="tg-watermark">SovenkArt</a>
-        </div>
-
-    </div> <!-- Конец .game-container -->
-
-
-    <!-- ===================================================================== -->
-    <!-- 5. ВСПЛЫВАЮЩЕЕ ОКНО ПРЕДПРОСМОТРА КАРТЫ И НАГРАДЫ (МОДАЛКА) -->
-    <!-- ===================================================================== -->
-    <div id="card-modal" class="card-modal">
-        <div class="modal-content">
-            
-            <!-- Место, куда JS вставляет большую карту для 3D покачивания -->
-            <div class="modal-card-placeholder"></div>
-            
-            <!-- Кнопки управления внутри модалки -->
-            <div class="modal-actions">
-                <button class="btn-modal btn-keep">Назад</button>
-                <button class="btn-modal btn-burn">🔥 Сжечь</button>
-            </div>
-
-        </div>
     </div>
 
+    <!-- НИЖНИЙ ХУД (ПОДВАЛ) -->
+    <div class="bottom-hud-panel">
+        <!-- Левый угол: Кнопка колоды -->
+        <button class="deck-button">Моя Колода</button>
 
-    <!-- ===================================================================== -->
-    <!-- МОДУЛЬНЫЙ ЗАПУСК ИГРЫ И ФИКСИРОВАННЫЙ НИКНЕЙМ -->
-    <!-- ===================================================================== -->
-    <!-- Главный скрипт архитектуры фронтенда -->
+        <!-- Центр: Никнейм -->
+        <div class="fixed-player-username">@Загрузка...</div>
+
+        <!-- Правый угол: Ссылка автора -->
+        <a href="https://t.me" target="_blank" class="author-link">SovenkArt</a>
+    </div>
+
+    <!-- АВАРТИЙНАЯ ФОРМА ВХОДА -->
+    <div id="auth-overlay" class="auth-overlay-box">
+        <div class="auth-modal">
+            <h3>Вход в Картеж</h3>
+            <p>Не удалось подключиться к Telegram сессии.</p>
+            <label for="manual-username">Введите ваш Telegram никнейм вручную:</label>
+            <input type="text" id="manual-username" placeholder="username">
+            <button id="btn-manual-login">Войти в колоду</button>
+        </div>
+    </div>
+</div>
+
+
+
+ 
     <script type="module" src="js/main.js"></script>
 
     <!-- НИКНЕЙМ ИГРОКА: Вынесен под скрипт, чтобы железно висеть поверх любой графики по центру -->
