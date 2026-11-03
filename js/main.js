@@ -18,30 +18,32 @@ async function startApp() {
 
 async function loginWithTelegram(initDataStr) {
     try {
-        if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
+        console.log("Отправляем запрос на:", `${API_URL}/api/auth/telegram`);
         
-        const response = await fetch(`${API_URL}/auth/telegram`, {
+        const response = await fetch(`${API_URL}/api/auth/telegram`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ initData: initDataStr })
         });
-        
-        const data = await response.json();
-        if (response.ok) {
-            const profile = Array.isArray(data) ? data[0] : data;
-            setPlayerProfile(profile);
-            setUser({ id: profile.user_id, username: profile.username });
-            
-            updateUI();
-            startCooldownTimer();
-            setupEventListeners();
-            initParallax(); // Инициализация 3D эффекта
-        } else {
-            alert("Ошибка авторизации: " + data.detail);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            alert("Ошибка сервера: " + (errorData.detail || "Неизвестная ошибка"));
+            return;
         }
-    } catch (e) { 
-        console.error(e); 
-        alert("Не удалось связаться с сервером");
+
+        const playerData = await response.json();
+        console.log("Успешный вход! Данные игрока:", playerData);
+        
+        // Только теперь, когда вход успешен, скрываем оверлей
+        if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
+        
+        // Здесь вызывайте функцию инициализации вашей игры с полученными playerData
+        // Например: startGame(playerData);
+
+    } catch (error) {
+        console.error("Критическая ошибка fetch:", error);
+        alert("Не удалось связаться с сервером. Проверьте API_URL.");
     }
 }
 
