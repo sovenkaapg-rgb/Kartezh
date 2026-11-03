@@ -4,17 +4,21 @@ import { renderDeckGrid } from './deck.js';
 
 // Инициализация старта приложения
 async function startApp() {
-    // Пробуем взять никнейм из локальной памяти устройства
     const savedUsername = localStorage.getItem("saved_game_username");
 
     if (savedUsername) {
         console.log("Найден сохраненный аккаунт:", savedUsername);
         await loginWithNickname(savedUsername);
     } else {
-        // Если аккаунта нет в памяти, открываем форму авторизации
-        if (DOM.authOverlay) DOM.authOverlay.style.display = 'flex';
+        console.log("Аккаунт не найден, принудительно открываем окно ввода");
+        // Берем элемент напрямую на случай, если кэш DOM еще не обновился
+        const overlay = document.getElementById('auth-overlay');
+        if (overlay) {
+            overlay.style.setProperty('display', 'flex', 'important');
+        }
     }
 }
+
 
 // Авторизация по никнейму
 async function loginWithNickname(usernameStr) {
@@ -189,27 +193,34 @@ function setupEventListeners() {
     }
 }
 
-// Эффект параллакса заднего фона при наклоне смартфона
 function initParallax() {
     const bgLayer = document.querySelector('.parallax-bg-layer');
     const botContainer = document.querySelector('.bot-character-container');
     if (!bgLayer || !botContainer) return;
 
-    window.addEventListener('deviceorientation', (event) => {
-        let x = event.gamma || 0; 
-        let y = event.beta || 0;  
+    try {
+        window.addEventListener('deviceorientation', (event) => {
+            // Добавляем проверку, что событие вообще содержит данные
+            if (!event) return; 
+            
+            let x = event.gamma || 0; 
+            let y = event.beta || 0;  
 
-        if (x > 30) x = 30; if (x < -30) x = -30;
-        if (y > 60) y = 60; if (y < 20) y = 20;
+            if (x > 30) x = 30; if (x < -30) x = -30;
+            if (y > 60) y = 60; if (y < 20) y = 20;
 
-        const bgX = (x / 30) * -15;
-        const bgY = ((y - 40) / 20) * -15;
-        const botX = (x / 30) * 8;
+            const bgX = (x / 30) * -15;
+            const bgY = ((y - 40) / 20) * -15;
+            const botX = (x / 30) * 8;
 
-        bgLayer.style.transform = `scale(1.1) translate(${bgX}px, ${bgY}px)`;
-        botContainer.style.transform = `translateX(${botX}px)`;
-    });
+            bgLayer.style.transform = `scale(1.1) translate(${bgX}px, ${bgY}px)`;
+            botContainer.style.transform = `translateX(${botX}px)`;
+        });
+    } catch (e) {
+        console.warn("Параллакс не поддерживается на этом устройстве:", e);
+    }
 }
+
 
 // Привязка ручного ввода никнейма в форме
 if (DOM.manualLoginBtn) {
