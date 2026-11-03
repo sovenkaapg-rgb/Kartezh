@@ -1,5 +1,5 @@
 // Укажите здесь URL вашего сервера на PythonAnywhere (БЕЗ /api на конце!)
-export const API_URL = "https://pythonanywhere.com"; 
+export const API_URL = "https://retrogule.pythonanywhere.com"; 
 
 export const tg = window.Telegram?.WebApp || null;
 export let user = { id: null, username: null };
