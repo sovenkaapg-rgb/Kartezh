@@ -22,46 +22,12 @@ html, body {
     overflow: hidden;
 }
 
-/* ИНТЕРФЕЙС (HUD): Монеты и Таймер жестко закреплены сверху */
-.top-hud-panel {
-    position: absolute;
-    top: 10px;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 0 12px;
-    box-sizing: border-box;
-    z-index: 20;
-}
+/* ================== ИСПРАВЛЕННЫЙ ИНТЕРФЕЙС HUD (МОНЕТЫ ВЛЕВО, ТАЙМЕР ВПРАВО) ================== */
 
-.coin-balance {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(18, 10, 28, 0.75);
-    padding: 6px 14px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    font-weight: bold;
-    font-size: 0.95rem;
-}
 
 .icon-coin {
     width: 18px;
     height: auto;
-}
-
-.cooldown-box {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(20, 10, 35, 0.75);
-    padding: 4px 6px 4px 12px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.85rem;
 }
 
 .icon-hourglass {
@@ -447,17 +413,6 @@ body, html {
 }
 
 /* ФИКС ИНТЕРФЕЙСА: Монеты, Таймер и Статусы жестко фиксируем наверху */
-.top-interface-panel {
-    position: absolute;
-    top: 15px;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    padding: 0 20px;
-    box-sizing: border-box;
-    z-index: 10; /* Поверх параллакса и персонажа */
-}
 
 
 /* Блок кулдауна и песочных часов */
@@ -558,69 +513,256 @@ body, html {
     box-sizing: border-box;
 }
 
-.auth-card {
-    background: rgba(22, 13, 38, 0.85);
-    border: 2px solid rgba(142, 68, 173, 0.4);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7), 0 0 20px rgba(142, 68, 173, 0.15);
-    border-radius: 20px;
-    padding: 30px 24px;
+
+/* ================== ИСПРАВЛЕННЫЙ ИНТЕРФЕЙС HUD (МОНЕТЫ ВЛЕВО, ТАЙМЕР ВПРАВО) ================== */
+.top-hud-panel, .top-interface-panel {
+    position: absolute;
+    top: 15px;
+    left: 0;
     width: 100%;
-    max-width: 320px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    box-sizing: border-box;
+    z-index: 20;
+}
+
+/* Монеты смещаются строго в левый угол */
+.coin-balance {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(14, 8, 22, 0.8);
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    font-weight: bold;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Группа кулдауна и сродства уходит в правый угол */
+.right-stats-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.cooldown-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(14, 8, 22, 0.8);
+    padding: 6px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ================== РЕПЛИКА БОТА (ПОДНЯТА ВЫШЕ НАД ГОЛОВОЙ) ================== */
+.bot-speech-bubble {
+    position: absolute;
+    top: 90px; /* Перемещено со 135px на 90px — теперь оно значительно выше */
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(14, 8, 20, 0.9);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    padding: 12px 20px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    color: #f3e8ff;
     text-align: center;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    width: 85%;
+    max-width: 300px;
+    z-index: 20;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7), inset 0 0 10px rgba(168, 85, 247, 0.1);
+}
+
+
+/* ================== ПРЕМИАЛЬНОЕ И СТИЛЬНОЕ ОКНО ВХОДА ================== */
+#auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: radial-gradient(circle at center, #160d29 0%, #08040d 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.auth-card {
+    background: rgba(18, 10, 32, 0.75);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(168, 85, 247, 0.1);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 310px;
+    text-align: center;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-sizing: border-box;
 }
 
 .auth-card h3 {
-    margin: 0 0 10px 0;
-    font-size: 1.4rem;
+    margin: 0 0 8px 0;
+    font-size: 1.35rem;
     color: #ffffff;
-    font-weight: bold;
-    letter-spacing: 1px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
 .auth-card p {
-    font-size: 0.85rem;
-    color: #bfa6de;
-    margin: 0 0 24px 0;
+    font-size: 0.8rem;
+    color: #9f8bb3;
+    margin: 0 0 22px 0;
     line-height: 1.4;
 }
 
+/* Поле ввода никнейма */
 .auth-card input {
     width: 100%;
-    background: rgba(10, 5, 18, 0.6);
-    border: 1px solid rgba(142, 68, 173, 0.5);
-    border-radius: 10px;
-    padding: 12px;
+    background: rgba(10, 5, 15, 0.5);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    border-radius: 12px;
+    padding: 12px 14px;
     box-sizing: border-box;
-    color: #fff;
-    font-size: 1rem;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-family: inherit;
     text-align: center;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: all 0.25s ease;
 }
 
 .auth-card input:focus {
-    border-color: #a855f7;
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    border-color: #c084fc;
+    background: rgba(10, 5, 15, 0.8);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
 }
 
+.auth-card input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Аккуратная кнопка с градиентом */
 .auth-card button {
     width: 100%;
-    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 14px;
-    color: white;
-    font-size: 1rem;
-    font-weight: bold;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-    transition: transform 0.1s, filter 0.2s;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.35);
+    transition: all 0.15s ease;
+}
+
+.auth-card button:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
 }
 
 .auth-card button:active {
-    transform: scale(0.97);
-    filter: brightness(0.9);
+    transform: scale(0.98);
+    filter: brightness(0.95);
+}
+/* ================== СТИЛИ ДЛЯ ЭКРАНА КОЛОДЫ (DECK SCREEN) ================== */
+.deck-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: linear-gradient(135deg, #0c0714 0%, #170d29 100%);
+    z-index: 9999; /* Отображается поверх игрового стола и бота */
+    display: none; /* Контролируется через JS (flex) */
+    flex-direction: column;
+    padding: 20px 16px 70px 16px; /* Запас снизу, чтобы HUD панель ничего не перекрывала */
+    box-sizing: border-box;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    overflow-y: auto; /* Позволяет прокручивать колоду вниз */
+}
+
+/* Заголовок внутри экрана колоды */
+.deck-screen h2 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 10px 0 20px 0;
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    letter-spacing: 1px;
+}
+
+/* Сетка для отображения карт */
+.deck-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 карты в один ряд */
+    gap: 12px;
+    width: 100%;
+    max-width: 450px;
+    margin: 0 auto;
+    padding-bottom: 20px;
+}
+
+/* Стилизация заблокированной (не открытой) карты */
+.card-container.card-locked {
+    filter: brightness(0.2) grayscale(1);
+    opacity: 0.4;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    cursor: not-allowed !important;
+}
+
+/* Счетчик количества карт (например: x2) */
+.card-badge {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    background: #a855f7;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+/* Кнопка закрытия экрана колоды */
+.btn-close-deck {
+    align-self: center;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: auto; /* Прижимает кнопку к самому низу экрана */
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.btn-close-deck:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.15);
 }
