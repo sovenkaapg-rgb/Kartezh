@@ -1,0 +1,145 @@
+/* ==========================================================================
+   ФОН И ПАРАЛЛАКС (БЕЗ ВЫХОДА ЗА ГРАНИЦЫ)
+   ========================================================================== */
+.parallax-bg-layer {
+    position: absolute !important;
+    top: -5% !important;   
+    left: -5% !important;  
+    width: 110% !important; 
+    height: 110% !important;
+    background-image: url('../assets/bg.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    z-index: 1 !important;
+    transform: scale(1); 
+    transition: transform 0.1s ease-out;
+    pointer-events: none;
+}
+
+/* Контейнер бота (тело + качающаяся рука) */
+.bot-character-container {
+    position: absolute !important;
+    bottom: 150px !important; 
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 85% !important;
+    max-width: 340px !important;
+    height: auto !important;
+    z-index: 2 !important; 
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-end !important;
+    pointer-events: none;
+    transition: transform 0.1s ease-out;
+}
+
+.bot-part-body {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    object-fit: contain !important;
+}
+
+.bot-part-hand {
+    position: absolute !important;
+    width: 53% !important;
+    height: auto !important;
+    top: 25% !important;
+    right: -12% !important;
+    left: auto !important;
+    object-fit: contain !important;
+    z-index: 3 !important;
+    transform-origin: 75% 35%; 
+    animation: handWave 4s infinite ease-in-out;
+}
+
+@keyframes handWave {
+    0%, 100% { transform: rotate(0deg) translateY(0); }
+    50% { transform: rotate(-2.5deg) translateY(-2px) translateX(-1px); }
+}
+
+/* ==========================================================================
+   ПОДГОНКА ПЕРЕДНЕГО ПЛАНА (СТОЛ И МАГИЧЕСКИЙ КРУГ)
+   ========================================================================== */
+.front-table-layer {
+    position: absolute !important;
+    bottom: 35px !important;  
+    left: -20% !important;
+    width: 140% !important; 
+    height: 340px !important; 
+    z-index: 4 !important;    
+    pointer-events: none;
+}
+
+.table-img {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: fill !important;
+    z-index: 4 !important;
+}
+
+.magic-ring-container {
+    position: absolute !important;
+    top: 30px !important;    
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 460px !important; 
+    height: 150px !important;
+    z-index: 5 !important;
+}
+
+/* ==========================================================================
+   ПОЛНОЭКРАННЫЙ ОВЕРЛЕЙ ЗАТЕМНЕНИЯ СЦЕНЫ (ИСПРАВЛЕННЫЙ)
+   ========================================================================== */
+.scene-dark-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    background: rgba(6, 3, 10, 0.85) !important;
+    z-index: 999998 !important; /* Строго под вылетающей картой */
+    opacity: 0 !important;
+    display: block !important; /* Убрали display: none, теперь работает плавная прозрачность */
+    pointer-events: none !important;
+    transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.scene-dark-overlay.active {
+    opacity: 1 !important;
+}
+
+/* ==========================================================================
+   АНИМАЦИИ КАРТ (ПОЛЕТ, СХОД, ГОРЕНИЕ)
+   ========================================================================== */
+.card-enter-left {
+    animation: enterLeft 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+}
+@keyframes enterLeft {
+    0% { transform: translateX(-200px) scale(0.5); opacity: 0; }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+.card-leave-right {
+    animation: leaveRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+    pointer-events: none;
+}
+@keyframes leaveRight {
+    0% { transform: translateX(0) scale(1); opacity: 1; }
+    100% { transform: translateX(250px) scale(0.6) rotate(15deg); opacity: 0; }
+}
+
+.card-burn-animation {
+    animation: burnAndAsh 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
+    pointer-events: none;
+}
+@keyframes burnAndAsh {
+    0% { transform: scale(1) translateY(0); filter: contrast(1); opacity: 1; }
+    30% { filter: drop-shadow(0 0 25px #a83232) drop-shadow(0 0 10px #8e44ad) contrast(1.5); transform: scale(1.05) translateY(-10px); }
+    60% { filter: brightness(0.1) contrast(2) drop-shadow(0 -15px 25px #8e44ad); opacity: 0.7; }
+    100% { filter: brightness(0) blur(8px); transform: scale(0.3) translateY(-200px) rotate(10deg); opacity: 0; }
+}

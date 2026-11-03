@@ -1,24 +1,34 @@
 import { API_URL, DOM, tg, playerProfile, isDrawing } from './config.js';
 
-
-// Проверка статуса таймера и отрисовка закрытых карт
+// Проверка кулдауна
+// Проверка кулдауна (Строгий фикс против спавна дубликатов)
 export function checkCooldownStatus() {
     if (!playerProfile) return;
+    
+    // Если игрок УЖЕ в процессе выбора/анимации/свайпа, блокируем повторный спавн карт!
+    if (isDrawing.value === true) return; 
+
     if (DOM.timeLeftEl.textContent === "Готово!" || DOM.timeLeftEl.textContent === "00ч 00м 00с") {
-        if (DOM.cardsDropZone.querySelector('.zone-placeholder') || (!DOM.cardsDropZone.querySelector('.card-container') && !isDrawing.value)) {
+        // Проверяем, что на столе действительно пусто и анимация не запущена
+        if (!DOM.cardsDropZone.querySelector('.card-container')) {
             renderThreeClosedCards();
         }
     }
 }
 
-// Отрисовка 3-х закрытых карт для выбора игроком
+// Отрисовка 3-х карт на столе
 function renderThreeClosedCards() {
+    // Гарантируем сброс флага, так как карты только появились на столе и ждут клика
+    isDrawing.value = false; 
+    
     DOM.cardsDropZone.innerHTML = '';
-    isDrawing.value = false;
+    
+    const sceneOverlay = document.querySelector('.scene-dark-overlay');
+    if (sceneOverlay) sceneOverlay.classList.remove('active');
 
     for (let i = 1; i <= 3; i++) {
         const cardContainer = document.createElement('div');
-        cardContainer.className = 'card-container closed-choice-card';
+        cardContainer.className = 'card-container closed-choice-card card-enter-left';
         cardContainer.innerHTML = `<div class="card-inner"><div class="card-front"></div></div>`;
         cardContainer.addEventListener('click', () => handleCardClick(cardContainer));
         DOM.cardsDropZone.appendChild(cardContainer);
@@ -26,108 +36,259 @@ function renderThreeClosedCards() {
     if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Выбирай с умом... или хватай любую.";
 }
 
-// Логика клика по закрытой карте, запрос к бэкенду и анимация полета
+// Полет выбранной карты в центр экрана
 async function handleCardClick(clickedCard) {
     if (isDrawing.value) return; 
-    isDrawing.value = true;
+    isDrawing.value = true; // Переводим в режим анимации/выбора
 
     if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium'); 
 
+    // Убираем оставшиеся две карты со стола направо
+    const allCards = DOM.cardsDropZone.querySelectorAll('.card-container');
+    allCards.forEach(card => {
+        if (card !== clickedCard) {
+            card.classList.remove('card-enter-left');
+            card.classList.add('card-leave-right');
+            card.addEventListener('animationend', () => card.remove());
+        }
+    });
+    
+    document.body.appendChild(clickedCard);
+    // Включаем полноэкранное затемнение сцены
+    const sceneOverlay = document.querySelector('.scene-dark-overlay');
+    if (sceneOverlay) sceneOverlay.classList.add('active');
+
+    // Очищаем старые классы стола, чтобы включился чистый position: fixed в центре экрана
+    clickedCard.classList.remove('closed-choice-card', 'card-enter-left');
+    clickedCard.classList.add('card-zoom-and-fly');
+
+    if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Смахни карту влево или вправо, чтобы раскрыть её...";
+
     try {
-        const response = await fetch(`${API_URL}/draw-card/${playerProfile.user_id}`, { method: 'POST' });
+        const response = await fetch(`${API_URL}/api/draw-card/${playerProfile.user_id}`, { method: 'POST' });
         const result = await response.json();
 
-        if (result.status === "success") {
-            const allCards = DOM.cardsDropZone.querySelectorAll('.card-container');
-            
-            // 1. Оставшиеся карты плавно смахиваются вправо
-            allCards.forEach(card => {
-                if (card !== clickedCard) {
-                    card.classList.add('card-leave-right');
-                    card.addEventListener('animationend', () => card.remove());
-                }
-            });
-
-            // 2. Выбранная карта центрируется и приближается рубашкой вверх
-            clickedCard.classList.remove('closed-choice-card');
-            clickedCard.classList.add('card-zoom-and-fly');
-
-            if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Хм-м... Давай посмотрим, что тебе уготовила судьба!";
-
-            // 3. Ждем ровно 600мс (длительность анимации полета)
+             if (result.status === "success") {
             setTimeout(() => {
-                const isLegendary = result.card.rarity && result.card.rarity.toLowerCase() === 'лега';
-                const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
+                initSwipeMechanic(clickedCard, result.card);
+            }, 650);
 
-                // Подгружаем лицо под рубашку
-                clickedCard.querySelector('.card-inner').innerHTML += `
-                    <div class="card-back">
-                        <img class="card-image-bg" src="${result.card.image_url}">
-                        ${glareHtml}
-                        <div class="card-content">
-                            <div class="card-title">${result.card.title}</div>
-                            <div class="card-rarity" style="${isLegendary ? 'color: #ffd700; text-shadow: 0 0 10px gold;' : ''}">
-                                ${result.card.rarity ? result.card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}
-                            </div>
-                        </div>
-                    </div>`;
-
-                // 4. Запускаем плавный 3D-переворот лицом к игроку
-                clickedCard.classList.add('flipped');
-                if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success'); 
-
-                // 5. Открываем модалку после того, как игрок рассмотрит карту на столе
-                setTimeout(() => {
-                    openModal(result.card);
-                }, 1200);
-
-            }, 600);
-
-            // Мягко обновляем баланс монет на заднем фоне
             playerProfile.points = result.points_updated || playerProfile.points;
-            if (DOM.coinBalanceEl) DOM.coinBalanceEl.innerHTML = `${playerProfile.points} 🪙`;
+            if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = playerProfile.points;
+            playerProfile.last_pack_opened = new Date().toISOString(); 
 
         } else {
-            alert(result.detail || "Ошибка призыва!");
-            isDrawing.value = false;
+            // ВМЕСТО ALERT: Бот сообщает об ошибке призыва
+            if (DOM.speechBubbleEl) {
+                DOM.speechBubbleEl.textContent = `Ой-ой... ${result.detail || "Призыв сорвался! Давай попробуем еще раз?"}`;
+            }
+            isDrawing.value = false; 
+            renderThreeClosedCards();
         }
     } catch (e) {
-        alert("Станция не отвечает!");
-        isDrawing.value = false;
+        // ВМЕСТО ALERT: Бот ворчит на упавший сервер
+        if (DOM.speechBubbleEl) {
+            DOM.speechBubbleEl.textContent = "Хм... В АДу не ловит. Похоже, у нас проблемы со связью!";
+        }
+        isDraggingSwipe = false;
+        isDrawing.value = false; 
+        renderThreeClosedCards();
     }
 }
-// Открытие модального окна с детальной информацией о карте
+
+// МЕХАНИКА ИНТЕРАКТИВНОГО СВАЙПА
+function initSwipeMechanic(cardEl, cardData) {
+    let startX = 0;
+    let currentX = 0;
+    let isDraggingSwipe = false;
+    const threshold = 60; // Расстояние для срабатывания свайпа
+
+    const startAction = (e) => {
+        if (cardEl.classList.contains('flipped')) return;
+        isDraggingSwipe = true;
+        startX = e.touches ? e.touches[0].clientX : e.clientX;
+        cardEl.style.transition = 'none';
+    };
+
+    const moveAction = (e) => {
+        if (!isDraggingSwipe || cardEl.classList.contains('flipped')) return;
+        currentX = e.touches ? e.touches[0].clientX : e.clientX;
+        const diffX = currentX - startX;
+        
+        // Физический сдвиг и красивый наклон во время тащения
+        const rotation = diffX * 0.08;
+        cardEl.style.transform = `translateX(${diffX}px) rotate(${rotation}deg)`;
+    };
+
+    const endAction = () => {
+        if (!isDraggingSwipe) return;
+        isDraggingSwipe = false;
+        const diffX = currentX - startX;
+
+        if (Math.abs(diffX) >= threshold) {
+            // СВАЙП СРАБОТАЛ: плавно переходим к анимации раскрытия
+            flipAndRevealCard(cardEl, cardData);
+        } else {
+            // Свайп не дотянул: возвращаем карту ровно в центр
+            cardEl.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+            cardEl.style.transform = 'none';
+        }
+    };
+
+    cardEl.addEventListener('mousedown', startAction);
+    window.addEventListener('mousemove', moveAction);
+    window.addEventListener('mouseup', endAction);
+
+    cardEl.addEventListener('touchstart', startAction, { passive: true });
+    window.addEventListener('touchmove', moveAction, { passive: true });
+    window.addEventListener('touchend', endAction);
+}
+
+// Функция 3D-переворота с импульсным эффектом
+function flipAndRevealCard(cardEl, cardData) {
+    if (cardEl.classList.contains('flipped')) return;
+
+    let rarityClass = 'common';
+    if (cardData.rarity) {
+        const r = cardData.rarity.toLowerCase();
+        if (r === 'редкая' || r === 'редк') rarityClass = 'rare';
+        if (r === 'лега' || r === 'легендарная') rarityClass = 'legendary';
+    }
+    const isLegendary = rarityClass === 'legendary';
+    const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
+
+    // Генерируем задник (лицо). В CSS .card-back будет изначально развернута на rotateY(180deg)
+    cardEl.querySelector('.card-inner').innerHTML += `
+        <div class="card-back rarity-${rarityClass}">
+            <img class="card-image-bg" src="${cardData.image_url}">
+            <div class="card-frame-border"></div>
+            <div class="card-id-badge">${cardData.id || '?'}</div>
+            <div class="card-text-plate">
+                <div class="card-title-text">${cardData.title}</div>
+                <div class="card-rarity-text">${cardData.rarity ? cardData.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
+            </div>
+            ${glareHtml}
+        </div>`;
+
+    // Запускаем переворот родительского .card-inner на 180 градусов
+    const innerEl = cardEl.querySelector('.card-inner');
+    innerEl.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+    innerEl.style.transform = 'rotateY(180deg)';
+
+    // Саму обертку фиксируем на месте без сдвигов свайпа
+    cardEl.style.transition = 'transform 0.4s ease';
+    cardEl.style.transform = 'none';
+    cardEl.classList.add('flipped');
+    
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+    // Когда переворот завершился, выкатываем встроенные готические кнопки управления
+    setTimeout(() => {
+        renderInPlaceActionButtons(cardData, cardEl);
+    }, 600);
+}
+
+// Создание кнопок "В колоду" и "Сжечь" прямо под картой
+// Создание кнопок "В колоду" и "Сжечь" прямо под картой
+function renderInPlaceActionButtons(cardData, cardEl) {
+    if (document.querySelector('.inline-action-buttons')) return;
+
+    if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Решай судьбу этой карты...";
+
+    const btnWrapper = document.createElement('div');
+    btnWrapper.className = 'inline-action-buttons';
+    btnWrapper.innerHTML = `
+        <button class="btn-inline-keep">В колоду</button>
+        <button class="btn-inline-burn">🔥 Сжечь (+${cardData.point_value || 10} 🪙)</button>
+    `;
+    
+    document.body.appendChild(btnWrapper); 
+    setTimeout(() => btnWrapper.classList.add('visible'), 50);
+
+    // Логика кнопки "В колоду"
+    btnWrapper.querySelector('.btn-inline-keep').onclick = () => {
+        btnWrapper.classList.remove('visible');
+        cardEl.style.transition = 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)';
+        cardEl.style.transform = 'translateY(150px) scale(0) rotate(15deg)';
+        cardEl.style.opacity = '0';
+
+        setTimeout(() => {
+            btnWrapper.remove();
+            cardEl.remove(); // <--- ФИКС: Физически удаляем карту из document.body
+            DOM.cardsDropZone.innerHTML = '';
+            const sceneOverlay = document.querySelector('.scene-dark-overlay');
+            if (sceneOverlay) sceneOverlay.classList.remove('active');
+            isDrawing.value = false;
+        }, 500);
+    };
+
+    // Логика кнопки "Сжечь"
+    btnWrapper.querySelector('.btn-inline-burn').onclick = async () => {
+        btnWrapper.classList.remove('visible');
+        cardEl.classList.add('card-burn-animation');
+
+        try {
+            const response = await fetch(`${API_URL}/api/burn-card/${playerProfile.user_id}/${cardData.id}`, { method: 'POST' });
+            if (response.ok) {
+                const resData = await response.json();
+                playerProfile.points = resData.new_points;
+                if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = playerProfile.points;
+            }
+        } catch (e) {
+            console.error("Ошибка при сжигании:", e);
+        }
+
+        setTimeout(() => {
+            btnWrapper.remove();
+            cardEl.remove(); // <--- ФИКС: Физически удаляем сгоревшую карту из document.body
+            DOM.cardsDropZone.innerHTML = '';
+            const sceneOverlay = document.querySelector('.scene-dark-overlay');
+            if (sceneOverlay) sceneOverlay.classList.remove('active');
+            isDrawing.value = false;
+        }, 800);
+    };
+}
+
+// Окно детального просмотра (из коллекции)
+// Открытие окна детального просмотра из коллекции (для deck.js)
 export function openModal(card) {
     const realCardModal = document.querySelector('.card-modal') || document.getElementById('card-modal');
     if (!realCardModal) return;
-    
-    const isLegendary = card.rarity && card.rarity.toLowerCase() === 'лега';
-    const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
 
     const modalPlaceholder = realCardModal.querySelector('.modal-card-placeholder');
     if (modalPlaceholder) {
+        let rarityClass = 'common';
+        if (card.rarity) {
+            const r = card.rarity.toLowerCase();
+            if (r === 'редкая' || r === 'редк') rarityClass = 'rare';
+            if (r === 'лега' || r === 'легендарная') rarityClass = 'legendary';
+        }
+        const isLegendary = rarityClass === 'legendary';
+        const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
+
+        // Наполнение плейсхолдера: убран класс flipped и инлайновые rotateY
         modalPlaceholder.innerHTML = `
-            <div class="card-container flipped modal-view" style="transform-style: preserve-3d; transition: transform 0.1s ease-out;">
-                <div class="card-inner" style="width: 100%; height: 100%; transform-style: preserve-3d; pointer-events: none;">
-                    <div class="card-back" style="width: 100%; height: 100%; position: absolute; backface-visibility: hidden; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.9); border: 2px solid ${isLegendary ? '#ffd700' : 'rgba(255,255,255,0.15)'}; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;">
-                        <img class="card-image-bg" src="${card.image_url}" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:1;">
-                        ${glareHtml}
-                        <div class="card-content" style="z-index:2; width:100%; height:100%; display:flex; flex-direction:column; justify-content:flex-end; padding:15px; background: linear-gradient(to top, rgba(12,7,20,1) 20%, rgba(12,7,20,0) 100%);">
-                            <div class="card-title" style="font-size: 1rem; font-weight: bold; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.9); margin-bottom:5px;">${card.title}</div>
-                            <div class="card-rarity" style="font-size: 0.75rem; font-weight: 800; letter-spacing: 2px; ${isLegendary ? 'color: #ffd700; text-shadow: 0 0 10px gold;' : 'color:#bbb;'}">
-                                ${card.rarity ? card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}
-                            </div>
+            <div class="card-container modal-view">
+                <div class="card-inner" style="transform: none !important;">
+                    <div class="card-back rarity-${rarityClass}" style="transform: none !important; position: relative !important;">
+                        <img class="card-image-bg" src="${card.image_url}">
+                        <div class="card-frame-border"></div>
+                        <div class="card-id-badge">${card.id || '?'}</div>
+                        <div class="card-text-plate">
+                            <div class="card-title-text">${card.title}</div>
+                            <div class="card-rarity-text">${card.rarity ? card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
                         </div>
+                        ${glareHtml}
                     </div>
                 </div>
             </div>`;
     }
 
     realCardModal.style.setProperty('display', 'flex', 'important');
-    realCardModal.style.setProperty('z-index', '9999', 'important');
+    realCardModal.style.setProperty('z-index', '999999', 'important');
     setTimeout(() => realCardModal.style.opacity = '1', 10);
 
-    // Активация 3D наклона при движении пальца/мышки
+    // Интерактивный 3D-наклон большой карты за курсором/пальцем
     setTimeout(() => {
         const tiltCard = realCardModal.querySelector('.modal-view');
         if (!tiltCard) return;
@@ -141,7 +302,7 @@ export function openModal(card) {
             let rotateY = (x / (rect.width / 2)) * 12;
             rotateX = Math.max(-12, Math.min(12, rotateX));
             rotateY = Math.max(-12, Math.min(12, rotateY));
-            tiltCard.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
+            tiltCard.style.transform = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
             ticking = false;
         };
 
@@ -155,7 +316,7 @@ export function openModal(card) {
         };
 
         const resetTilt = () => {
-            tiltCard.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)`;
+            tiltCard.style.transform = `perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)`;
         };
 
         tiltCard.addEventListener('mousemove', handleMove);
@@ -164,80 +325,54 @@ export function openModal(card) {
         tiltCard.addEventListener('touchend', resetTilt);
     }, 150);
 
-    // Обработчик кнопки Оставить (Назад)
+    // Обработчик кнопки "Оставить" (просто закрывает модалку)
     const keepBtn = realCardModal.querySelector('.btn-keep');
     if (keepBtn) {
         keepBtn.onclick = () => {
             realCardModal.style.opacity = '0';
-            setTimeout(() => {
-                realCardModal.style.display = 'none';
-                DOM.cardsDropZone.innerHTML = '<div class="zone-placeholder">Нажми на круг...</div>';
-                isDrawing.value = false;
-            }, 400);
+            setTimeout(() => { realCardModal.style.display = 'none'; }, 400);
         };
     }
 
-    // Обработчик мгновенного сжигания карты (БЕЗ задержек и подвисаний)
+    // Обработчик кнопки "Сжечь" из коллекции
     const burnBtn = realCardModal.querySelector('.btn-burn');
-        if (burnBtn) {
+    // Обработчик кнопки "Сжечь" из коллекции (Внутри функции openModal в cards.js)
+    if (burnBtn) {
         burnBtn.textContent = `🔥 Сжечь (+${card.point_value || 10} 🪙)`;
         burnBtn.onclick = async () => {
             const modalViewCard = realCardModal.querySelector('.modal-card-placeholder .card-container');
             if (modalViewCard) modalViewCard.classList.add('card-burn-animation');
-            
-            const currentCard = DOM.cardsDropZone.querySelector('.card-container');
-            if (currentCard) currentCard.classList.add('card-burn-animation');
 
-            const modalActions = realCardModal.querySelector('.modal-actions');
-            if (modalActions) {
-                modalActions.style.transition = 'opacity 0.15s';
-                modalActions.style.opacity = '0';
-            }
-            
+            setTimeout(() => {
+                realCardModal.style.opacity = '0';
+                setTimeout(() => { realCardModal.style.display = 'none'; }, 200);
+            }, 300); 
+
             try {
-                // Запрос отправляется на правильный ID игрока из сохраненного профиля
-                const response = await fetch(`${API_URL}/api/burn-card/${playerProfile.user_id}/${card.id}`, { method: 'POST' });
-                if (response.ok) { 
+                const configModule = await import('./config.js');
+                const response = await fetch(`${configModule.API_URL}/api/burn-card/${configModule.playerProfile.user_id}/${card.id}`, { method: 'POST' });
+                
+                if (response.ok) {
                     const resData = await response.json();
-                    
-                    playerProfile.points = resData.new_points; 
-                    if (DOM.coinBalanceEl) DOM.coinBalanceEl.innerHTML = `${playerProfile.points} 🪙`;
+                    configModule.playerProfile.points = resData.new_points;
+                    if (configModule.DOM.coinBalanceEl) configModule.DOM.coinBalanceEl.textContent = resData.new_points;
 
-                    // Важно: если окно колоды открыто, мгновенно перерисовываем сетку карт с новыми количествами x
-                    const deckScreen = document.querySelector('.deck-screen');
-                    if (deckScreen && (deckScreen.style.display === 'flex' || deckScreen.style.opacity === '1')) {
-                        const { renderDeckGrid } = await import('./deck.js');
-                        await renderDeckGrid();
-                    }
+                    const { renderDeckGrid } = await import('./deck.js');
+                    await renderDeckGrid();
                 } else {
                     const err = await response.json();
-                    alert(err.detail || "Не удалось сжечь карту");
-                }
-            } catch (e) { 
-                console.error("Ошибка при сжигании карты:", e); 
-            }
-            
-            setTimeout(() => {
-                realCardModal.style.transition = 'opacity 0.2s ease';
-                realCardModal.style.opacity = '0';
-                
-                setTimeout(() => {
-                    realCardModal.style.display = 'none';
-                    if (modalActions) modalActions.style.opacity = '1'; 
-                    // Если мы сжигали карту главного экрана, возвращаем заглушку
-                    if (DOM.cardsDropZone.querySelector('.card-burn-animation')) {
-                        DOM.cardsDropZone.innerHTML = '<div class="zone-placeholder">Нажми на круг...</div>';
+                    // Ошибку сжигания отправляем в бабл бота вместо alert
+                    if (configModule.DOM.speechBubbleEl) {
+                        configModule.DOM.speechBubbleEl.textContent = `черт не горит ${err.detail || ""}`;
                     }
-                    isDrawing.value = false;
-                }, 200);
-            }, 600);
+                }
+                } catch (e) {
+                console.error("Ошибка сжигания из коллекции:", e);
+                const configModule = await import('./config.js');
+                if (configModule.DOM.speechBubbleEl) {
+                    configModule.DOM.speechBubbleEl.textContent = "Не могу связаться с сервером, огонь затухает...";
+                }
+            }
         };
     }
-
-}
-
-// Принудительное закрытие модального окна
-export function closeModal() {
-    DOM.cardModal.style.opacity = '0';
-    setTimeout(() => DOM.cardModal.style.display = 'none', 400);
 }

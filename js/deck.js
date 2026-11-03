@@ -11,7 +11,7 @@ export async function renderDeckGrid() {
     realDeckGrid.innerHTML = '';
 
     try {
-        const response = await fetch(`${API_URL}/deck/${playerProfile.user_id}`);
+        const response = await fetch(`${API_URL}/api/deck/${playerProfile.user_id}`);
         const data = await response.json();
 
         const allCards = data.all_cards || [];
@@ -21,31 +21,45 @@ export async function renderDeckGrid() {
             realDeckGrid.innerHTML = `<div style="color:#aaa; text-align:center; padding:20px; grid-column: 1/-1;">В базе данных нет карт!</div>`;
             return;
         }
+        
+        // Сортируем карты по ID, чтобы они шли по порядку
         allCards.sort((a, b) => a.id - b.id);
         
         allCards.forEach(card => {
             const owned = userCards.find(uc => String(uc.card_id) === String(card.id));
             const container = document.createElement('div');
             
+            // Если карта не выбита, вешаем класс блокировки card-locked
             container.className = owned ? 'card-container' : 'card-container card-locked';
-            container.style.width = "100%";
-            container.style.height = "120px"; 
-            container.style.position = "relative";
-            container.style.pointerEvents = "auto";
-            container.style.zIndex = "90";
-            container.setAttribute('data-card-id', card.id); // МУСОРНАЯ СТРОКА УДАЛЕНА
+            
+            // Определяем класс редкости
+            let rarityClass = 'common';
+            if (card.rarity) {
+                const r = card.rarity.toLowerCase();
+                if (r === 'редкая' || r === 'редк') rarityClass = 'rare';
+                if (r === 'лега' || r === 'легендарная') rarityClass = 'legendary';
+            }
+            const isLegendary = rarityClass === 'legendary';
+            const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
+            const quantity = owned ? (owned.quantity || 1) : 0;
 
             if (owned) {
+                // Карточка выбита: показываем лицо.
+                // ВАЖНО: В CSS .card-back имеет rotateY(180deg), поэтому для отображения в сетке
+                // мы принудительно гасим внутренний разворот через rotateY(0deg) прямо у .card-back
                 container.innerHTML = `
-                    <div class="card-inner" style="transform: rotateY(180deg); width:100%; height:100%; pointer-events: none;">
-                        <div class="card-back" style="width:100%; height:100%; position:absolute; pointer-events: none;">
-                            <img class="card-image-bg" src="${card.image_url || ''}" style="pointer-events: none;">
-                            <div class="card-content" style="pointer-events: none;">
-                                <div class="card-title" style="font-size:0.55rem; pointer-events: none;">${card.title || 'Без имени'}</div>
-                                <div class="card-rarity" style="font-size:0.5rem; pointer-events: none;">${card.rarity ? card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
+                    <div class="card-inner" style="transform: none !important;">
+                        <div class="card-back rarity-${rarityClass}" style="transform: rotateY(0deg) !important; position: relative !important;">
+                            <img class="card-image-bg" src="${card.image_url || ''}">
+                            <div class="card-frame-border"></div>
+                            <div class="card-id-badge">${card.id || '?'}</div>
+                            <div class="card-text-plate">
+                                <div class="card-title-text">${card.title || 'Без имени'}</div>
+                                <div class="card-rarity-text">${card.rarity ? card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
                             </div>
-                            <div class="card-badge" style="pointer-events: none;">x${owned.quantity || 1}</div>
+                            ${glareHtml}
                         </div>
+                        ${quantity > 1 ? `<div class="card-badge">x${quantity}</div>` : ''}
                     </div>`;
                 
                 container.addEventListener('click', (e) => {
@@ -54,12 +68,15 @@ export async function renderDeckGrid() {
                     openModal(card);
                 });
             } else {
+                // Карточка скрыта (не выбита): рисуем пустую рамку с вопросиками и ч/б силуэтом
                 container.innerHTML = `
-                    <div class="card-inner" style="transform: rotateY(180deg); width:100%; height:100%; pointer-events: none;">
-                        <div class="card-back" style="width:100%; height:100%; position:absolute; pointer-events: none;">
-                            <div class="card-content" style="pointer-events: none;">
-                                <div class="card-title" style="font-size:0.55rem; pointer-events: none;">${card.title || '???'}</div>
-                                <div class="card-rarity" style="font-size:0.5rem; pointer-events: none;">${card.rarity ? card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
+                    <div class="card-inner" style="transform: none !important;">
+                        <div class="card-back rarity-${rarityClass}" style="transform: rotateY(0deg) !important; position: relative !important;">
+                            <img class="card-image-bg" src="${card.image_url || ''}">
+                            <div class="card-frame-border"></div>
+                            <div class="card-text-plate">
+                                <div class="card-title-text">???</div>
+                                <div class="card-rarity-text">${card.rarity ? card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
                             </div>
                         </div>
                     </div>`;

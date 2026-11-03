@@ -1,0 +1,317 @@
+/* УДАЛИТЕ ЭТИ СТРОКИ С САМОГО ВЕРХА СВОЕГО СТИЛЯ: */
+@import "./card-presets.css";
+@import "./interface.css";
+@import "./scene.css";
+@import "./deck.css";
+@import "./modal.css";
+/* Подключаем премиальные готические и читаемые шрифты с Google Fonts */
+@import url('https://googleapis.com');
+
+
+
+/* ==========================================================================
+   ГЛОБАЛЬНЫЙ КАРКАС ПРИЛОЖЕНИЯ
+   ========================================================================== */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0c0714;
+    /* Основной шрифт для интерфейса — аккуратный Montserrat */
+    font-family: 'Montserrat', sans-serif;
+    -webkit-user-select: none;  /* Safari, Chrome, Opera, Telegram WebApp */
+    -moz-user-select: none;     /* Firefox */
+    -ms-user-select: none;      /* IE/Edge */
+    user-select: none;   
+    -webkit-tap-highlight-color: transparent; 
+}
+img {
+    -webkit-user-drag: none; /* Для Chrome, Safari и Telegram WebApp */
+    pointer-events: none;
+    /* Стандартное CSS-свойство: запрещает любые действия мыши/тачи с картинкой */
+}
+
+/* ==========================================================================
+   ОБНОВЛЕННЫЙ ПРЕМИУМ HUD (ВЕРХНЯЯ ПАНЕЛЬ)
+   ========================================================================== */
+.coin-balance {
+    font-weight: 900;
+    font-size: 1.05rem;
+    color: #f7ebd3;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    font-family: 'Cinzel', serif; /* Цифры баланса в благородном стиле */
+}
+
+.cooldown-box {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #f7ebd3;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    letter-spacing: 0.5px;
+    font-family: 'Cinzel', serif; /* Таймер отсчета */
+}
+
+/* ==========================================================================
+   АТМОСФЕРНЫЙ ДИАЛОГОВЫЙ БАБЛ БОТА
+   ========================================================================== */
+.bot-speech-bubble {
+    position: absolute;
+    top: 110px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1c0b12;
+    border: 2px solid #4a1a2b;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #e3d2bd;
+    text-align: center;
+    width: 80%;
+    max-width: 290px;
+    z-index: 20;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.8);
+    font-weight: 700; /* Делаем речь бота более выразительной */
+}
+
+/* ==========================================================================
+   ВНУТРЕННИЕ ДЕКОРАТИВНЫЕ ЭЛЕМЕНТЫ КАРТЫ (Из source: 4)
+   ========================================================================== */
+.card-title-text {
+    /* ЗАМЕНА СТАРЕЙШЕГО COMIC SANS НА ДЕКОРАТИВНЫЙ КИНЕМАТОГРАФИЧНЫЙ ШРИФТ */
+    font-family: 'Cinzel Decorative', serif !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 2px !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.9) !important;
+    width: 100% !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.5px;
+}
+
+.card-rarity-text {
+    font-family: 'Montserrat', sans-serif !important;
+    font-size: 0.5rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 1.5px !important; /* Увеличили трекинг для премиальности */
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9) !important;
+    text-transform: uppercase; /* Всегда капсом */
+}
+
+/* ==========================================================================
+   ЭКРАН КОЛОДЫ (Из source: 5)
+   ========================================================================== */
+.deck-screen h2 {
+    text-align: center;
+    font-family: 'Cinzel Decorative', serif; /* Готический заголовок коллекции */
+    font-size: 1.6rem;
+    margin: 10px 0 20px 0;
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+    letter-spacing: 2px;
+}
+
+.deck-grid .card-title {
+    font-family: 'Cinzel', serif !important;
+    font-size: 0.7rem !important;
+    font-weight: bold !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+
+/* ==========================================================================
+   ГЛОБАЛЬНЫЙ КАРКАС ПРИЛОЖЕНИЯ
+   ========================================================================== */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0c0714;
+    font-family: sans-serif;
+}
+
+#app-container, .main-app-screen {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cards-drop-zone {
+    position: absolute !important;
+    top: auto !important;
+    bottom: 15px !important;       /* Отступ снизу, чтобы лежать аккуратно на столе над HUD */
+    left: 0 !important;
+    width: 100% !important;
+    height: 125px !important;      /* Фиксированная высота только под размер маленьких карт */
+    
+    /* Выстраиваем 3 карты строго в ряд по центру */
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: flex-end !important; /* Прижимаем карты к нижней границе зоны */
+    gap: 16px !important;          /* Расстояние между картами */
+    
+    z-index: 99999 !important;     /* Поверх фона и бота, чтобы карты кликались */
+    pointer-events: auto !important;
+}
+
+/* Контейнер маленькой закрытой карты на столе */
+.cards-drop-zone .card-container.closed-choice-card {
+    position: relative !important;
+    width: 80px !important;
+    height: 115px !important;
+    margin: 0 !important;
+    cursor: pointer;
+    perspective: 1000px !important;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+}
+/* ==========================================================================
+   ПОКАЗ ВЫТЯНУТОЙ КАРТЫ (ПО ЦЕНТРУ ЭКРАНА) И КНОПОК
+   ========================================================================== */
+/* ==========================================================================
+   ЭФФЕКТЫ ПОЛЕТА И УНИЧТОЖЕНИЯ КАРТ
+   ========================================================================== */
+.card-leave-right {
+    animation: leaveRight 0.5s forwards cubic-bezier(0.25, 1, 0.5, 1) !important;
+    pointer-events: none;
+}
+
+@keyframes leaveRight {
+    0% { transform: translateX(0) scale(1); opacity: 1; }
+    100% { transform: translateX(250px) scale(0.7) rotate(20deg); opacity: 0; }
+}
+
+.card-burn-animation {
+    animation: burnAndAsh 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
+    pointer-events: none;
+}
+
+@keyframes burnAndAsh {
+    0% { transform: scale(1) translateY(0) rotate(0deg); filter: drop-shadow(0 0 0px transparent) contrast(1); opacity: 1; }
+    25% { filter: drop-shadow(0 0 25px #a83232) drop-shadow(0 0 10px #8e44ad) contrast(1.4); transform: scale(1.04) translateY(-8px) rotate(-1deg); }
+    60% { filter: brightness(0.2) contrast(2) drop-shadow(0 -10px 20px #8e44ad); opacity: 0.6; }
+    100% { filter: brightness(0) blur(6px); transform: scale(0.5) translateY(-180px) rotate(8deg); opacity: 0; }
+}
+
+/* Полноэкранный готический оверлей */
+.scene-dark-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: rgba(6, 3, 10, 0.88); 
+    z-index: 15; 
+    opacity: 0;
+    pointer-events: none; /* Изначально выключен */
+    transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.scene-dark-overlay.active {
+    opacity: 1;
+    pointer-events: none; /* ФИКС ЗАВИСАНИЯ: Темнота пропускает клики сквозь себя прямо на карту! */
+}
+/* ==========================================================================
+   ЗОНА ДРОПА КАРТ (НА ПОВЕРХНОСТИ СТОЛА)
+   ========================================================================== */
+
+
+/* Фиксированный контейнер большой карты */
+.card-zoom-and-fly {
+    position: fixed !important;    /* Полная независимость от флексбокса стола */
+    left: 50% !important;
+    top: 42% !important;           /* Центрируем чуть выше середины, оставляя место кнопкам */
+    
+    /* Финальные сочные размеры карты на весь экран */
+    width: 220px !important;    
+    height: 316px !important;  
+    
+    /* Сдвиг ровно на половину ширины и высоты назад для идеального центра */
+    margin-left: -110px !important;  
+    margin-top: -158px !important;   
+    
+    z-index: 9999999 !important;   /* Поверх абсолютно всего на сцене */
+    transform-style: preserve-3d !important;
+    perspective: 1200px !important;
+    
+    /* Плавный эпичный вылет */
+    animation: flyInFaceEpic 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+}
+
+/* Эпичная анимация вылета из глубины стола в центр экрана */
+@keyframes flyInFaceEpic {
+    0% { 
+        /* Карта начинает движение маленькой из области стола */
+        transform: translateY(300px) scale(0.3) rotate(-5deg); 
+        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5)); 
+        opacity: 0.5;
+    }
+    100% { 
+        /* Прилетает в fixed-координаты без деформаций */
+        transform: translateY(0) scale(1) rotate(0deg);
+        filter: drop-shadow(0 25px 50px rgba(0, 0, 0, 0.9)); 
+        opacity: 1;
+    }
+}
+
+/* Принудительный сброс мелких инлайновых размеров у дочерних элементов лица/рубашки */
+.card-zoom-and-fly .card-inner,
+.card-zoom-and-fly .card-front, 
+.card-zoom-and-fly .card-back {
+    width: 100% !important;     
+    height: 100% !important;   
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+}
+
+/* Инлайновые кнопки выбора судьбы карты */
+.inline-action-buttons {
+    position: fixed !important;    /* Базируются относительно всего экрана */
+    bottom: 20% !important;        /* Встают ровно под улетевшей вверх картой */
+    left: 50% !important;
+    transform: translateX(-50%) translateY(15px);
+    display: flex;
+    gap: 16px;
+    z-index: 99999999 !important;  /* На слой выше оверлея затемнения */
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Класс видимости для кнопок, включаемый из JS */
+.inline-action-buttons.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+/* Добавьте этот класс в ваш CSS, чтобы бабл трясся при ошибках */
+.bot-speech-bubble.shake {
+    animation: bubbleShake 0.4s ease-in-out;
+}
+
+@keyframes bubbleShake {
+    0%, 100% { transform: translateX(-50%) rotate(0deg); }
+    20%, 60% { transform: translateX(-54%) rotate(-1deg); }
+    40%, 80% { transform: translateX(-46%) rotate(1deg); }
+}
