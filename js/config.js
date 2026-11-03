@@ -1,4 +1,4 @@
-export const API_URL = "http://127.0.0.1:8000"; 
+export const API_URL = "https://retrogule.pythonanywhere.com"; 
 
 export const tg = window.Telegram?.WebApp || null;
 export let user = { id: null, username: null };
