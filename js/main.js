@@ -2,51 +2,61 @@ import { API_URL, DOM, tg, user, playerProfile, setPlayerProfile, setUser } from
 import { checkCooldownStatus } from './cards.js';
 import { renderDeckGrid } from './deck.js';
 
+// Замените старый startApp на этот:
 async function startApp() {
-    const telegramSdk = window.Telegram?.WebApp;
-    
-    // Проверяем, запущены ли мы в реальном ТГ с initData
-    if (telegramSdk && telegramSdk.initData) { 
-        telegramSdk.ready(); 
-        telegramSdk.expand();
-        await loginWithTelegram(telegramSdk.initData);
+    // Пробуем взять никнейм из памяти устройства
+    const savedUsername = localStorage.getItem("saved_game_username");
+
+    if (savedUsername) {
+        console.log("Найден сохраненный аккаунт:", savedUsername);
+        await loginWithNickname(savedUsername);
     } else {
-        // Если открыли в обычном браузере на ПК — показываем форму аварийного входа
+        // Если аккаунта нет в памяти, открываем форму ввода
         if (DOM.authOverlay) DOM.authOverlay.style.display = 'flex';
     }
 }
 
-async function loginWithTelegram(initDataStr) {
+// Замените старый loginWithTelegram на эту новую функцию:
+async function loginWithNickname(usernameStr) {
     try {
-        console.log("Отправляем запрос на:", `${API_URL}/api/auth/telegram`);
+        console.log("Отправляем запрос авторизации для:", usernameStr);
         
-        const response = await fetch(`${API_URL}/api/auth/telegram`, {
+        const response = await fetch(`${API_URL}/api/auth/simple`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: initDataStr })
+            body: JSON.stringify({ username: usernameStr })
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            alert("Ошибка сервера: " + (errorData.detail || "Неизвестная ошибка"));
+            alert("Ошибка входа: " + (errorData.detail || "Неизвестная ошибка"));
+            localStorage.removeItem("saved_game_username"); // Сбрасываем плохой ник
+            if (DOM.authOverlay) DOM.authOverlay.style.display = 'flex';
             return;
         }
 
         const playerData = await response.json();
-        console.log("Успешный вход! Данные игрока:", playerData);
+        console.log("Успешный вход! Живые данные игрока:", playerData);
         
-        // Только теперь, когда вход успешен, скрываем оверлей
+        // Запоминаем профиль глобально в приложении
+        setPlayerProfile(playerData);
+        setUser({ id: playerData.user_id, username: playerData.username });
+
+        // Сохраняем в память устройства «навсегда»
+        localStorage.setItem("saved_game_username", playerData.username);
+        
+        // Обновляем весь игровой интерфейс и запускаем таймеры
+        updateUI();
+        startCooldownTimer();
+
+        // Прячем оверлей входа
         if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
-        
-        // Здесь вызывайте функцию инициализации вашей игры с полученными playerData
-        // Например: startGame(playerData);
 
     } catch (error) {
-        console.error("Критическая ошибка fetch:", error);
-        alert("Не удалось связаться с сервером. Проверьте API_URL.");
+        console.error("Критическая ошибка сети при авторизации:", error);
+        alert("Не удалось связаться с игровым сервером. Попробуйте позже.");
     }
 }
-
 function updateUI() {
     if (!playerProfile) return;
     if (DOM.coinBalanceEl) DOM.coinBalanceEl.innerHTML = `${playerProfile.points} 🪙`;
@@ -136,14 +146,15 @@ function initParallax() {
     });
 }
 
-// Заглушка ручного входа для тестов на ПК
+// Замените блок обработки клика по кнопке внизу файла (initParallax и DOM.manualLoginBtn):
 if (DOM.manualLoginBtn) {
     DOM.manualLoginBtn.addEventListener('click', async () => {
         let name = DOM.manualInput.value.trim().replace('@', '');
-        if (!name) return;
-        
-        const fakeInitData = `user=${encodeURIComponent(JSON.stringify({id: 123456789, username: name}))}&hash=mock`;
-        await loginWithTelegram(fakeInitData);
+        if (!name) {
+            alert("Пожалуйста, введите никнейм!");
+            return;
+        }
+        await loginWithNickname(name);
     });
 }
 
