@@ -308,10 +308,14 @@ body, html {
 /* ==========================================================================
    ПОКАЗ ВЫТЯНУТОЙ КАРТЫ ПО ЦЕНТРУ ЭКРАНА
    ========================================================================== */
+/* ==========================================================================
+   ПОКАЗ ВЫТЯНУТОЙ КАРТЫ ПО ЦЕНТРУ ЭКРАНА (ИСПРАВЛЕНО)
+   ========================================================================== */
+/* Базовое состояние вылетающей карты */
 .card-zoom-and-fly {
     position: fixed !important;
     left: 50% !important;
-    top: 42% !important;
+    top: 50% !important;
     
     width: 220px !important;
     height: 316px !important;
@@ -319,38 +323,90 @@ body, html {
     min-height: 316px !important;
     max-width: 220px !important;
     max-height: 316px !important;
-    
-    margin-left: -110px !important;
-    margin-top: -158px !important;
+    margin: 0 !important; 
     
     z-index: 999999 !important;
-    transform-style: preserve-3d !important;
-    perspective: 1200px !important;
+    
+    /* ФИКС: Убираем отсюда transform-style, оставляем только перспективу */
+    perspective: 1400px !important; 
     
     animation: flyInFaceEpic 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
 }
 
+/* ФИКС: Внутренний каркас карты, который мы непосредственно крутим в JS */
+.card-zoom-and-fly .card-inner {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+    transform-style: preserve-3d !important;
+    /* Явно заставляем браузер крутить строго от математического центра */
+    transform-origin: center center 0 !important; 
+    will-change: transform;
+}
+
 @keyframes flyInFaceEpic {
     0% {
-        transform: translateY(300px) scale(0.3) rotate(-5deg);
+        transform: translate(-50%, 150px) scale(0.3) rotate(-5deg);
         filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
         opacity: 0.5;
     }
     100% {
-        transform: translateY(0) scale(1) rotate(0deg);
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
         filter: drop-shadow(0 25px 50px rgba(0, 0, 0, 0.9));
         opacity: 1;
     }
 }
 
-.card-zoom-and-fly .card-inner,
-.card-zoom-and-fly .card-front,
-.card-zoom-and-fly .card-back {
+.card-zoom-and-fly.settled { 
+    animation: none !important; 
+    transform: translate(-50%, -50%) !important; 
+}
+
+/* Гарантируем, что внутренний каркас жестко сидит в границах родителя */
+.card-zoom-and-fly .card-inner {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    min-width: 100% !important;
-    min-height: 100% !important;
+    transform-style: preserve-3d !important;
+    transform-origin: center center 0px !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
+
+/* Принудительно выравниваем рубашку и лицо по центру контейнера */
+.card-zoom-and-fly .card-front,
+.card-zoom-and-fly .card-back {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    /* Убираем любые смещения, которые могли прилететь из флекс-контекста */
+    transform-origin: center center !important;
+}
+
+/* ФИКС ТЕКСТУРЫ РУБАШКИ: Проверяем, как рендерится фоновая картинка */
+.card-zoom-and-fly .card-front {
+    background-image: url('../assets/deck_texture.png') !important; 
+    background-size: 100% 100% !important; /* Растягиваем строго по размерам синей рамки */
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+}
+
+/* Если внутри .card-front или .card-back есть теги <img>, 
+   они не должны вылезать за пределы скругления углов */
+.card-zoom-and-fly img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+}
+
 
 /* ==========================================================================
    ИНЛАЙН КНОПКИ ДЕЙСТВИЙ (KEEP / BURN)

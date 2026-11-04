@@ -34,14 +34,13 @@ function renderThreeClosedCards() {
     }
     if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Выбирай с умом... или хватай любую.";
 }
-
 // Полет выбранной карты в центр экрана
 async function handleCardClick(clickedCard) {
     if (isDrawing.value) return; 
-    isDrawing.value = true; // Переводим в режим анимации/выбора
+    isDrawing.value = true;
 
     haptic('impactOccurred', 'medium');
-    // Убираем оставшиеся две карты со стола направо
+    
     const allCards = DOM.cardsDropZone.querySelectorAll('.card-container');
     allCards.forEach(card => {
         if (card !== clickedCard) {
@@ -52,11 +51,10 @@ async function handleCardClick(clickedCard) {
     });
     
     document.body.appendChild(clickedCard);
-    // Включаем полноэкранное затемнение сцены
+    
     const sceneOverlay = document.querySelector('.scene-dark-overlay');
     if (sceneOverlay) sceneOverlay.classList.add('active');
 
-    // Очищаем старые классы стола, чтобы включился чистый position: fixed в центре экрана
     clickedCard.classList.remove('closed-choice-card', 'card-enter-left');
     clickedCard.classList.add('card-zoom-and-fly');
 
@@ -66,7 +64,32 @@ async function handleCardClick(clickedCard) {
         const response = await apiFetch('/api/draw-card', { method: 'POST' });
         const result = await response.json();
 
-             if (result.status === "success") {
+        if (result.status === "success") {
+            let rarityClass = 'common';
+            if (result.card.rarity) {
+                const r = result.card.rarity.toLowerCase();
+                if (r === 'редкая' || r === 'редк') rarityClass = 'rare';
+                if (r === 'лега' || r === 'легендарная') rarityClass = 'legendary';
+            }
+            const isLegendary = rarityClass === 'legendary';
+            const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
+
+            // Генерируем лицо карты СРАЗУ, чтобы его было видно сбоку при 3D-повороте
+            const innerEl = clickedCard.querySelector('.card-inner');
+            if (innerEl) {
+                innerEl.innerHTML += `
+                    <div class="card-back rarity-${rarityClass}">
+                        <img class="card-image-bg" src="${result.card.image_url}">
+                        <div class="card-frame-border"></div>
+                        <div class="card-id-badge">${result.card.id || '?'}</div>
+                        <div class="card-text-plate">
+                            <div class="card-title-text">${result.card.title}</div>
+                            <div class="card-rarity-text">${result.card.rarity ? result.card.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
+                        </div>
+                        ${glareHtml}
+                    </div>`;
+            }
+
             setTimeout(() => {
                 initSwipeMechanic(clickedCard, result.card);
             }, 650);
@@ -76,20 +99,17 @@ async function handleCardClick(clickedCard) {
             playerProfile.last_pack_opened = new Date().toISOString(); 
 
         } else {
-            // ВМЕСТО ALERT: Бот сообщает об ошибке призыва
             if (DOM.speechBubbleEl) {
-                DOM.speechBubbleEl.textContent = `Ой-ой... ${result.detail || "Призыв сорвался! Давай попробуем еще раз?"}`;
+                DOM.speechBubbleEl.textContent = `Ой-ой... ${result.detail || "Призыв сорвался!"}`;
             }
             clickedCard.remove();
             document.querySelector('.scene-dark-overlay')?.classList.remove('active');
             isDrawing.value = false; 
             renderThreeClosedCards();
-            
         }
     } catch (e) {
-        // ВМЕСТО ALERT: Бот ворчит на упавший сервер
         if (DOM.speechBubbleEl) {
-            DOM.speechBubbleEl.textContent = "Хм... В АДу не ловит. Похоже, у нас проблемы со связью!";
+            DOM.speechBubbleEl.textContent = "Хм... В АДу не ловит. Проблемы со связью!";
         }
         clickedCard.remove();
         document.querySelector('.scene-dark-overlay')?.classList.remove('active');
@@ -98,12 +118,15 @@ async function handleCardClick(clickedCard) {
     }
 }
 
-// МЕХАНИКА ИНТЕРАКТИВНОГО СВАЙПА
+// МЕХАНИКА ИНТЕРАКТИВНОГО 3D-СВАЙПА
 function initSwipeMechanic(cardEl, cardData) {
-    const threshold = 60;
-    let startX = 0, diffX = 0, dragging = false;
+    let startX = 0, currentX = 0, dragging = false;
+    const activationThreshold = window.innerWidth * 0.35; 
+    const resistanceCoef = 0.55; 
+    let lastHapticTick = 0;
 
-    // Снимаем CSS-анимацию вылета, иначе она перебивает inline-transform
+    const innerEl = cardEl.querySelector('.card-inner');
+
     cardEl.classList.add('settled');
     cardEl.style.filter = 'drop-shadow(0 25px 50px rgba(0,0,0,0.9))';
     cardEl.style.touchAction = 'none';
@@ -112,74 +135,85 @@ function initSwipeMechanic(cardEl, cardData) {
         if (cardEl.classList.contains('flipped')) return;
         dragging = true;
         startX = e.clientX;
-        diffX = 0;
+        currentX = 0;
+        lastHapticTick = 0;
         cardEl.setPointerCapture(e.pointerId);
+        if (innerEl) innerEl.style.transition = 'none';
         cardEl.style.transition = 'none';
+        
+        haptic('impactOccurred', 'light');
     });
 
     cardEl.addEventListener('pointermove', (e) => {
         if (!dragging) return;
-        diffX = e.clientX - startX;
-        cardEl.style.transform = `translateX(${diffX}px) rotate(${diffX * 0.08}deg)`;
+        
+        currentX = e.clientX - startX;
+        const dragDistance = currentX * resistanceCoef;
+        
+        // 1. Вращаем карту по оси Y от -140 до 140 градусов
+        let rotateY = (dragDistance / activationThreshold) * 90;
+        rotateY = Math.max(-140, Math.min(140, rotateY)); 
+
+        // 2. Двигаем РОДИТЕЛЬСКИЙ контейнер по экрану (сохраняя центрирование -50%)
+        cardEl.style.transform = `translate(calc(-50% + ${dragDistance}px), -50%)`;
+
+        // 3. Внутренний каркас ТОЛЬКО крутится вокруг своей оси, никуда не уезжая
+        if (innerEl) {
+            innerEl.style.transform = `rotateY(${rotateY}deg) rotateZ(${(dragDistance / activationThreshold) * 3}deg)`;
+        }
+
+        const currentTick = Math.floor(Math.abs(rotateY) / 20);
+        if (currentTick !== lastHapticTick) {
+            haptic('impactOccurred', 'soft');
+            lastHapticTick = currentTick;
+        }
     });
 
-    const end = () => {
+    const end = (e) => {
         if (!dragging) return;
         dragging = false;
-        if (Math.abs(diffX) >= threshold) {
-            flipAndRevealCard(cardEl, cardData);
+        
+        cardEl.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+        if (innerEl) innerEl.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+        
+        if (Math.abs(currentX) >= activationThreshold) {
+            const finalDirection = currentX > 0 ? 180 : -180;
+            flipAndRevealCard(cardEl, cardData, finalDirection);
         } else {
-            cardEl.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
-            cardEl.style.transform = 'none';
+            // Возвращаем в строгий центр экрана
+            cardEl.style.transform = 'translate(-50%, -50%)';
+            if (innerEl) innerEl.style.transform = 'none';
+            haptic('notificationOccurred', 'warning');
         }
     };
+
+
     cardEl.addEventListener('pointerup', end);
     cardEl.addEventListener('pointercancel', end);
 }
 
-// Функция 3D-переворота с импульсным эффектом
-function flipAndRevealCard(cardEl, cardData) {
+// Финальное раскрытие
+function flipAndRevealCard(cardEl, cardData, finalAngle) {
     if (cardEl.classList.contains('flipped')) return;
 
-    let rarityClass = 'common';
-    if (cardData.rarity) {
-        const r = cardData.rarity.toLowerCase();
-        if (r === 'редкая' || r === 'редк') rarityClass = 'rare';
-        if (r === 'лега' || r === 'легендарная') rarityClass = 'legendary';
-    }
-    const isLegendary = rarityClass === 'legendary';
-    const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
-
-    // Генерируем задник (лицо). В CSS .card-back будет изначально развернута на rotateY(180deg)
-    cardEl.querySelector('.card-inner').innerHTML += `
-        <div class="card-back rarity-${rarityClass}">
-            <img class="card-image-bg" src="${cardData.image_url}">
-            <div class="card-frame-border"></div>
-            <div class="card-id-badge">${cardData.id || '?'}</div>
-            <div class="card-text-plate">
-                <div class="card-title-text">${cardData.title}</div>
-                <div class="card-rarity-text">${cardData.rarity ? cardData.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
-            </div>
-            ${glareHtml}
-        </div>`;
-
-    // Запускаем переворот родительского .card-inner на 180 градусов
     const innerEl = cardEl.querySelector('.card-inner');
-    innerEl.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-    innerEl.style.transform = 'rotateY(180deg)';
 
-    // Саму обертку фиксируем на месте без сдвигов свайпа
-    cardEl.style.transition = 'transform 0.4s ease';
-    cardEl.style.transform = 'none';
-    cardEl.classList.add('flipped');
+    // Карта остается центрированной на родителе
+    cardEl.style.transform = 'translate(-50%, -50%)';
+
+    if (innerEl) {
+        innerEl.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        innerEl.style.transform = `rotateY(${finalAngle}deg)`; // Только чистый разворот
+    }
     
+    cardEl.classList.add('flipped');
     haptic('notificationOccurred', 'success');
 
-    // Когда переворот завершился, выкатываем встроенные готические кнопки управления
     setTimeout(() => {
         renderInPlaceActionButtons(cardData, cardEl);
-    }, 600);
+    }, 500);
 }
+
 
 // Создание кнопок "В колоду" и "Сжечь" прямо под картой
 function renderInPlaceActionButtons(cardData, cardEl) {
