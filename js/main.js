@@ -135,11 +135,21 @@ function startCooldownTimer() {
 // Настройка слушателей событий кликов
 function setupEventListeners() {
     // Открытие колоды
-    document.querySelector('.deck-button').onclick = async () => {
-        await renderDeckGrid();
-        DOM.deckScreen.style.display = 'flex';
-        setTimeout(() => DOM.deckScreen.style.opacity = '1', 10);
-    };
+    // Открытие колоды с защитой от двойного клика анимации
+    const deckBtn = document.querySelector('.deck-button');
+    if (deckBtn) {
+        deckBtn.onclick = async () => {
+            // Если экран уже открывается или открыт, ничего не делаем
+            if (DOM.deckScreen.style.display === 'flex') return;
+            
+            // Сначала рендерим (внутри включится защита)
+            await renderDeckGrid();
+            
+            DOM.deckScreen.style.display = 'flex';
+            setTimeout(() => DOM.deckScreen.style.opacity = '1', 10);
+        };
+    }
+
     
     // Закрытие колоды
     document.querySelector('.btn-close-deck').onclick = () => {

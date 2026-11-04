@@ -1,6 +1,9 @@
 import { DOM, playerProfile, apiFetch } from './config.js';
 import { openModal } from './cards.js';
 
+// Флаг для предотвращения одновременных повторных запросов
+let isDeckLoading = false;
+
 export async function renderDeckGrid() {
     const realDeckGrid = document.querySelector('.deck-grid');
     if (!realDeckGrid || !playerProfile) {
@@ -8,31 +11,38 @@ export async function renderDeckGrid() {
         return;
     }
 
-    realDeckGrid.innerHTML = '';
+    // Если колода уже загружается прямо сейчас, игнорируем повторный вызов
+    if (isDeckLoading) return;
+    isDeckLoading = true;
+
+    // Временно пишем, что идет загрузка, чтобы пользователь видел отклик
+    realDeckGrid.innerHTML = `<div style="color:#aaa; text-align:center; padding:20px; grid-column: 1/-1;">Загрузка колоды...</div>`;
 
     try {
         const response = await apiFetch('/api/deck');
+        if (!response.ok) throw new Error('Ошибка сервера при получении колоды');
+        
         const data = await response.json();
-
         const allCards = data.all_cards || [];
         const userCards = data.user_cards || [];
+
+        // Очищаем индикатор загрузки строго перед выводом карточек
+        realDeckGrid.innerHTML = '';
 
         if (allCards.length === 0) {
             realDeckGrid.innerHTML = `<div style="color:#aaa; text-align:center; padding:20px; grid-column: 1/-1;">В базе данных нет карт!</div>`;
             return;
         }
         
-        // Сортируем карты по ID, чтобы они шли по порядку
+        // Сортируем карты по ID
         allCards.sort((a, b) => a.id - b.id);
         
         allCards.forEach(card => {
             const owned = userCards.find(uc => String(uc.card_id) === String(card.id));
             const container = document.createElement('div');
             
-            // Если карта не выбита, вешаем класс блокировки card-locked
             container.className = owned ? 'card-container' : 'card-container card-locked';
             
-            // Определяем класс редкости
             let rarityClass = 'common';
             if (card.rarity) {
                 const r = card.rarity.toLowerCase();
@@ -44,9 +54,6 @@ export async function renderDeckGrid() {
             const quantity = owned ? (owned.quantity || 1) : 0;
 
             if (owned) {
-                // Карточка выбита: показываем лицо.
-                // ВАЖНО: В CSS .card-back имеет rotateY(180deg), поэтому для отображения в сетке
-                // мы принудительно гасим внутренний разворот через rotateY(0deg) прямо у .card-back
                 container.innerHTML = `
                     <div class="card-inner" style="transform: none !important;">
                         <div class="card-back rarity-${rarityClass}" style="transform: rotateY(0deg) !important; position: relative !important;">
@@ -68,7 +75,6 @@ export async function renderDeckGrid() {
                     openModal(card);
                 });
             } else {
-                // Карточка скрыта (не выбита): рисуем пустую рамку с вопросиками и ч/б силуэтом
                 container.innerHTML = `
                     <div class="card-inner" style="transform: none !important;">
                         <div class="card-back rarity-${rarityClass}" style="transform: rotateY(0deg) !important; position: relative !important;">
@@ -84,6 +90,10 @@ export async function renderDeckGrid() {
             realDeckGrid.appendChild(container);
         });
     } catch (error) { 
-        console.error("Ошибка при выполнении renderDeckGrid:", error); 
+        console.error("Ошибка при выполнении renderDeckGrid:", error);
+        realDeckGrid.innerHTML = `<div style="color:#ff6b6b; text-align:center; padding:20px; grid-column: 1/-1;">Не удалось загрузить карты...</div>`;
+    } finally {
+        // В любом случае снимаем блокировку загрузки
+        isDeckLoading = false;
     }
 }
