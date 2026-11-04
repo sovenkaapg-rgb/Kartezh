@@ -3,7 +3,7 @@
     top: 0;
     left: 0;
     width: 100% !important;
-    height: 100vh !important;
+    height: 100dvh !important;
     background: rgba(6, 3, 10, 0.95) !important; 
     display: none;
     flex-direction: column;

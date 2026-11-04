@@ -14,7 +14,7 @@ body, html {
 #app-container, .main-app-screen {
     position: relative;
     width: 100%;
-    height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -264,12 +264,6 @@ body, html {
 }
 
 /* ==========================================================================
-   ЗОНА ДРОПА КАРТ (СТРОГО ОГРАНИЧИВАЕМ РАЗМЕРЫ ОТ СПЛЮЩИВАНИЯ)
-   ========================================================================== */
-/* ==========================================================================
-   ЗОНА ДРОПА КАРТ (КОРРЕКТИРОВКА ПОЗИЦИИ НА СТОЛЕ)
-   ========================================================================== */
-/* ==========================================================================
    ЗОНА ДРОПА КАРТ (СТРОГО ВНУТРЬ МАГИЧЕСКОГО КРУГА)
    ========================================================================== */
 .cards-drop-zone {
@@ -405,4 +399,8 @@ body, html {
 
 .btn-inline-keep:active, .btn-inline-burn:active {
     transform: scale(0.95);
+}
+.card-zoom-and-fly.settled { animation: none !important; }
+.card-zoom-and-fly.card-burn-animation {
+    animation: burnAndAsh 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
 }

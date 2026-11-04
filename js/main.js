@@ -1,78 +1,80 @@
-import { API_URL, DOM, tg, user, playerProfile, setPlayerProfile, setUser } from './config.js';
+import { API_URL, DOM, tg, playerProfile, isDrawing, setPlayerProfile, setUser, setAuthToken, apiFetch } from './config.js';
 import { checkCooldownStatus } from './cards.js';
 import { renderDeckGrid } from './deck.js';
 
-// Инициализация старта приложения
-async function startApp() {
-    const savedUsername = localStorage.getItem("saved_game_username");
+function say(text) {
+    if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = text;
+}
 
-    if (savedUsername) {
-        console.log("Найден сохраненный аккаунт:", savedUsername);
-        await loginWithNickname(savedUsername);
+async function startApp() {
+    if (tg) { tg.ready(); tg.expand(); }
+
+    // Внутри Telegram: входим по подписанным данным
+    if (tg?.initData) {
+        await loginWithTelegram();
+        return;
+    }
+
+    // Вне Telegram: только отладочный вход по нику (сервер пустит его лишь при DEBUG=1)
+    const saved = localStorage.getItem("saved_game_username");
+    if (saved) {
+        await loginWithNickname(saved);
     } else {
-        console.log("Аккаунт не найден, принудительно открываем окно ввода");
-        // Берем элемент напрямую на случай, если кэш DOM еще не обновился
-        const overlay = document.getElementById('auth-overlay');
-        if (overlay) {
-            overlay.style.setProperty('display', 'flex', 'important');
-        }
+        document.getElementById('auth-overlay')?.style.setProperty('display', 'flex', 'important');
     }
 }
 
+async function loginWithTelegram() {
+    try {
+        const response = await fetch(`${API_URL}/api/auth/telegram`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: tg.initData })
+        });
+        if (!response.ok) {
+            say("Не узнаю тебя... Открой игру через бота в Telegram.");
+            return;
+        }
+        await finishLogin(await response.json());
+    } catch (e) {
+        say("Сервер отключился)");
+    }
+}
 
-// Авторизация по никнейму
 async function loginWithNickname(usernameStr) {
     try {
-        console.log("Отправляем запрос авторизации для:", usernameStr);
-        
         const response = await fetch(`${API_URL}/api/auth/simple`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: usernameStr })
         });
-
         if (!response.ok) {
-            const errorData = await response.json();
-            // ВМЕСТО ALERT: Пишем в бабл бота, что никнейм не подошел
-            if (DOM.speechBubbleEl) {
-                DOM.speechBubbleEl.textContent = `Ты вообще кто? ${errorData.detail || "Попробуй ввести другой никнейм."}`;
-            }
+            const err = await response.json().catch(() => ({}));
+            say(`Ты вообще кто? ${err.detail || "Попробуй другой никнейм."}`);
             localStorage.removeItem("saved_game_username");
             if (DOM.authOverlay) DOM.authOverlay.style.display = 'flex';
             return;
         }
-
-        let playerData = await response.json();
-        
-        // Корректный разбор ответа, если Flask возвращает массив
-        if (Array.isArray(playerData)) {
-            playerData = playerData[0];
-        }
-
-        console.log("Успешный вход! Данные игрока:", playerData);
-        
-        // Записываем профиль в глобальный стейт конфигурации
-        setPlayerProfile(playerData);
-        setUser({ id: playerData.user_id, username: playerData.username });
-
-        // Сохраняем ник в память браузера
-        localStorage.setItem("saved_game_username", playerData.username);
-        
-        updateUI();
-        startCooldownTimer();
-        setupEventListeners();
-        initParallax(); 
-
-        if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
-
-    } catch (error) {
-        // ВМЕСТО ALERT: Бот сообщает о проблемах при запуске
-        if (DOM.speechBubbleEl) {
-            DOM.speechBubbleEl.textContent = "Сервер отключился)";
-        }
+        const data = await response.json();
+        localStorage.setItem("saved_game_username", data.player.username);
+        await finishLogin(data);
+    } catch (e) {
+        say("Назови хотя бы имя...");
     }
 }
 
+async function finishLogin(data) {
+    setAuthToken(data.token);
+    setPlayerProfile(data.player);
+    setUser({ id: data.player.user_id, username: data.player.username });
+
+    updateUI();
+    startCooldownTimer();
+    setupEventListeners();
+    initParallax();
+
+    if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
+}
 // Динамическое обновление UI элементов HUD-панели
 function updateUI() {
     if (!playerProfile) return;
@@ -94,46 +96,38 @@ function updateUI() {
 }
 
 // Ежесекундный таймер кулдауна пака
+let timerState = null; // 'ready' | 'waiting'
+function setTimerState(state) {
+    if (timerState === state) return;
+    timerState = state;
+    if (state === 'ready') {
+        DOM.hourglassIcon?.classList.add('timer-ended');
+        say("Хм-м... Время пришло! Давай посмотрим, что тебе уготовила судьба!");
+    } else {
+        DOM.hourglassIcon?.classList.remove('timer-ended');
+        say("Тут будут карты, когда придет время. Придется немного подождать...");
+    }
+}
+
 let timerInterval = null;
 function startCooldownTimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
-        if (!playerProfile || !playerProfile.last_pack_opened) {
+        if (isDrawing.value) return; // во время выбора карты не трогаем интерфейс
+        const last = playerProfile?.last_pack_opened;
+        const diff = last ? new Date(last).getTime() + 4 * 3600000 - Date.now() : 0;
+
+        if (diff <= 0) {
             DOM.timeLeftEl.textContent = "Готово!";
-            
-            // Фикс: кладем часы на бок и меняем реплику бота
-            if (DOM.hourglassIcon) DOM.hourglassIcon.classList.add('timer-ended');
-            if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Хм-м... Время пришло! Давай посмотрим, что тебе уготовила судьба!";
-            
-            checkCooldownStatus(); 
+            setTimerState('ready');
+            checkCooldownStatus();
             return;
         }
-        
-        const diff = (new Date(playerProfile.last_pack_opened).getTime() + 4*60*60*1000) - new Date().getTime();
-        
-        if (diff <= 0) { 
-            DOM.timeLeftEl.textContent = "Готово!"; 
-            
-            // Время вышло: кладем часы на бок и зовем играть
-            if (DOM.hourglassIcon) DOM.hourglassIcon.classList.add('timer-ended');
-            if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Хм-м... Время пришло! Давай посмотрим, что тебе уготовила судьба!";
-            
-            checkCooldownStatus(); 
-            return; 
-        }
-        
-        // Время еще идет: убираем класс падения часов на бок
-        if (DOM.hourglassIcon) DOM.hourglassIcon.classList.remove('timer-ended');
-        
-        // Бот вежливо просит подождать прямо в бабле
-        if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Тут будут карты, когда придет время. Придется немного подождать...";
-        
-        const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-        const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-        const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+        setTimerState('waiting');
+        const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+        const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+        const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
         DOM.timeLeftEl.textContent = `${h}ч ${m}м ${s}с`;
-        
-        checkCooldownStatus();
     }, 1000);
 }
 
@@ -164,7 +158,7 @@ function setupEventListeners() {
             }
 
             try {
-                const response = await fetch(`${API_URL}/api/buy-hour/${playerProfile.user_id}`, { method: 'POST' });
+                const response = await apiFetch('/api/buy-hour', { method: 'POST' });
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -187,7 +181,7 @@ function setupEventListeners() {
                 }
                 }
             } catch (e) { 
-                alert("Игровой сервер не отвечает!"); 
+                if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Сервер молчит... Попробуй позже.";
             }
         };
     }
@@ -227,7 +221,7 @@ if (DOM.manualLoginBtn) {
     DOM.manualLoginBtn.addEventListener('click', async () => {
         let name = DOM.manualInput.value.trim().replace('@', '');
         if (!name) {
-            alert("Пожалуйста, введите никнейм!");
+            if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Сервер молчит... Попробуй позже.";
             return;
         }
         await loginWithNickname(name);

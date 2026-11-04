@@ -1,4 +1,4 @@
-import { API_URL, DOM, playerProfile } from './config.js';
+import { DOM, playerProfile, apiFetch } from './config.js';
 import { openModal } from './cards.js';
 
 export async function renderDeckGrid() {
@@ -11,7 +11,7 @@ export async function renderDeckGrid() {
     realDeckGrid.innerHTML = '';
 
     try {
-        const response = await fetch(`${API_URL}/api/deck/${playerProfile.user_id}`);
+        const response = await apiFetch('/api/deck');
         const data = await response.json();
 
         const allCards = data.all_cards || [];

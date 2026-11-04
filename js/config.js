@@ -1,4 +1,7 @@
-export const API_URL = "https://retrogule.pythonanywhere.com"; 
+const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
+export const API_URL = isLocal
+    ? "http://127.0.0.1:8000"
+    : "https://retrogule.pythonanywhere.com";
 
 export const tg = window.Telegram?.WebApp || null;
 export let user = { id: null, username: null };
@@ -34,4 +37,18 @@ export function refreshDOM() {
     DOM.hourglassIcon = document.querySelector('.spinning-hourglass');
     DOM.affinityFillEl = document.querySelector('.affinity-bar-fill');
     DOM.affinityLabelEl = document.querySelector('.affinity-header');
+}
+export let authToken = null;
+export function setAuthToken(t) { authToken = t; }
+
+// Все запросы к игровому API идут через эту функцию
+export function apiFetch(path, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    return fetch(`${API_URL}${path}`, { ...options, headers });
+}
+
+// Вибрация только там, где она поддерживается (убирает предупреждение в консоли)
+export function haptic(kind, type) {
+    if (tg?.initData && tg.isVersionAtLeast?.('6.1')) tg.HapticFeedback?.[kind]?.(type);
 }

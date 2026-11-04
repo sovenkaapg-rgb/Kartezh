@@ -1,7 +1,6 @@
-import { API_URL, DOM, tg, playerProfile, isDrawing } from './config.js';
+ import { DOM, playerProfile, isDrawing, apiFetch, haptic } from './config.js';
 
 // Проверка кулдауна
-// Проверка кулдауна (Строгий фикс против спавна дубликатов)
 export function checkCooldownStatus() {
     if (!playerProfile) return;
     
@@ -41,8 +40,7 @@ async function handleCardClick(clickedCard) {
     if (isDrawing.value) return; 
     isDrawing.value = true; // Переводим в режим анимации/выбора
 
-    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium'); 
-
+    haptic('impactOccurred', 'medium');
     // Убираем оставшиеся две карты со стола направо
     const allCards = DOM.cardsDropZone.querySelectorAll('.card-container');
     allCards.forEach(card => {
@@ -65,7 +63,7 @@ async function handleCardClick(clickedCard) {
     if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Смахни карту влево или вправо, чтобы раскрыть её...";
 
     try {
-        const response = await fetch(`${API_URL}/api/draw-card/${playerProfile.user_id}`, { method: 'POST' });
+        const response = await apiFetch('/api/draw-card', { method: 'POST' });
         const result = await response.json();
 
              if (result.status === "success") {
@@ -82,66 +80,61 @@ async function handleCardClick(clickedCard) {
             if (DOM.speechBubbleEl) {
                 DOM.speechBubbleEl.textContent = `Ой-ой... ${result.detail || "Призыв сорвался! Давай попробуем еще раз?"}`;
             }
+            clickedCard.remove();
+            document.querySelector('.scene-dark-overlay')?.classList.remove('active');
             isDrawing.value = false; 
             renderThreeClosedCards();
+            
         }
     } catch (e) {
         // ВМЕСТО ALERT: Бот ворчит на упавший сервер
         if (DOM.speechBubbleEl) {
             DOM.speechBubbleEl.textContent = "Хм... В АДу не ловит. Похоже, у нас проблемы со связью!";
         }
-        isDraggingSwipe = false;
-        isDrawing.value = false; 
+        clickedCard.remove();
+        document.querySelector('.scene-dark-overlay')?.classList.remove('active');
+        isDrawing.value = false;
         renderThreeClosedCards();
     }
 }
 
 // МЕХАНИКА ИНТЕРАКТИВНОГО СВАЙПА
 function initSwipeMechanic(cardEl, cardData) {
-    let startX = 0;
-    let currentX = 0;
-    let isDraggingSwipe = false;
-    const threshold = 60; // Расстояние для срабатывания свайпа
+    const threshold = 60;
+    let startX = 0, diffX = 0, dragging = false;
 
-    const startAction = (e) => {
+    // Снимаем CSS-анимацию вылета, иначе она перебивает inline-transform
+    cardEl.classList.add('settled');
+    cardEl.style.filter = 'drop-shadow(0 25px 50px rgba(0,0,0,0.9))';
+    cardEl.style.touchAction = 'none';
+
+    cardEl.addEventListener('pointerdown', (e) => {
         if (cardEl.classList.contains('flipped')) return;
-        isDraggingSwipe = true;
-        startX = e.touches ? e.touches[0].clientX : e.clientX;
+        dragging = true;
+        startX = e.clientX;
+        diffX = 0;
+        cardEl.setPointerCapture(e.pointerId);
         cardEl.style.transition = 'none';
-    };
+    });
 
-    const moveAction = (e) => {
-        if (!isDraggingSwipe || cardEl.classList.contains('flipped')) return;
-        currentX = e.touches ? e.touches[0].clientX : e.clientX;
-        const diffX = currentX - startX;
-        
-        // Физический сдвиг и красивый наклон во время тащения
-        const rotation = diffX * 0.08;
-        cardEl.style.transform = `translateX(${diffX}px) rotate(${rotation}deg)`;
-    };
+    cardEl.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        diffX = e.clientX - startX;
+        cardEl.style.transform = `translateX(${diffX}px) rotate(${diffX * 0.08}deg)`;
+    });
 
-    const endAction = () => {
-        if (!isDraggingSwipe) return;
-        isDraggingSwipe = false;
-        const diffX = currentX - startX;
-
+    const end = () => {
+        if (!dragging) return;
+        dragging = false;
         if (Math.abs(diffX) >= threshold) {
-            // СВАЙП СРАБОТАЛ: плавно переходим к анимации раскрытия
             flipAndRevealCard(cardEl, cardData);
         } else {
-            // Свайп не дотянул: возвращаем карту ровно в центр
             cardEl.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
             cardEl.style.transform = 'none';
         }
     };
-
-    cardEl.addEventListener('mousedown', startAction);
-    window.addEventListener('mousemove', moveAction);
-    window.addEventListener('mouseup', endAction);
-
-    cardEl.addEventListener('touchstart', startAction, { passive: true });
-    window.addEventListener('touchmove', moveAction, { passive: true });
-    window.addEventListener('touchend', endAction);
+    cardEl.addEventListener('pointerup', end);
+    cardEl.addEventListener('pointercancel', end);
 }
 
 // Функция 3D-переворота с импульсным эффектом
@@ -180,7 +173,7 @@ function flipAndRevealCard(cardEl, cardData) {
     cardEl.style.transform = 'none';
     cardEl.classList.add('flipped');
     
-    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    haptic('notificationOccurred', 'success');
 
     // Когда переворот завершился, выкатываем встроенные готические кнопки управления
     setTimeout(() => {
@@ -188,7 +181,6 @@ function flipAndRevealCard(cardEl, cardData) {
     }, 600);
 }
 
-// Создание кнопок "В колоду" и "Сжечь" прямо под картой
 // Создание кнопок "В колоду" и "Сжечь" прямо под картой
 function renderInPlaceActionButtons(cardData, cardEl) {
     if (document.querySelector('.inline-action-buttons')) return;
@@ -223,34 +215,31 @@ function renderInPlaceActionButtons(cardData, cardEl) {
     };
 
     // Логика кнопки "Сжечь"
-    btnWrapper.querySelector('.btn-inline-burn').onclick = async () => {
-        btnWrapper.classList.remove('visible');
-        cardEl.classList.add('card-burn-animation');
-
-        try {
-            const response = await fetch(`${API_URL}/api/burn-card/${playerProfile.user_id}/${cardData.id}`, { method: 'POST' });
-            if (response.ok) {
-                const resData = await response.json();
-                playerProfile.points = resData.new_points;
-                if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = playerProfile.points;
-            }
-        } catch (e) {
-            console.error("Ошибка при сжигании:", e);
-        }
-
-        setTimeout(() => {
-            btnWrapper.remove();
-            cardEl.remove(); // <--- ФИКС: Физически удаляем сгоревшую карту из document.body
-            DOM.cardsDropZone.innerHTML = '';
-            const sceneOverlay = document.querySelector('.scene-dark-overlay');
-            if (sceneOverlay) sceneOverlay.classList.remove('active');
-            isDrawing.value = false;
-        }, 800);
-    };
+btnWrapper.querySelector('.btn-inline-burn').onclick = async () => {
+    btnWrapper.classList.remove('visible');
+    try {
+        const response = await apiFetch(`/api/burn-card/${cardData.id}`, { method: 'POST' });
+        if (!response.ok) throw new Error('burn failed');
+        const resData = await response.json();
+        playerProfile.points = resData.new_points;
+        if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = playerProfile.points;
+    } catch (e) {
+        if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Огонь не разгорелся... Попробуй ещё раз.";
+        btnWrapper.classList.add('visible');
+        return;
+    }
+    cardEl.classList.add('card-burn-animation');
+    setTimeout(() => {
+        btnWrapper.remove();
+        cardEl.remove();
+        DOM.cardsDropZone.innerHTML = '';
+        document.querySelector('.scene-dark-overlay')?.classList.remove('active');
+        isDrawing.value = false;
+    }, 800);
+};
 }
 
 // Окно детального просмотра (из коллекции)
-// Открытие окна детального просмотра из коллекции (для deck.js)
 export function openModal(card) {
     const realCardModal = document.querySelector('.card-modal') || document.getElementById('card-modal');
     if (!realCardModal) return;
@@ -350,7 +339,7 @@ export function openModal(card) {
 
             try {
                 const configModule = await import('./config.js');
-                const response = await fetch(`${configModule.API_URL}/api/burn-card/${configModule.playerProfile.user_id}/${card.id}`, { method: 'POST' });
+                const response = await configModule.apiFetch(`/api/burn-card/${card.id}`, { method: 'POST' });
                 
                 if (response.ok) {
                     const resData = await response.json();
