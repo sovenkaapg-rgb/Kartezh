@@ -162,17 +162,16 @@ function setupEventListeners() {
         DOM.buyHourBtn.onclick = async () => {
             if (!playerProfile || playerProfile.points < 20) {
                 if (DOM.speechBubbleEl) {
+                    import('./config.js').then(m => m.haptic('notificationOccurred', 'error')); 
                     DOM.speechBubbleEl.textContent = "Или  твое время или деньги. Нет монет? Отдавай время";
                 }
                 return;
             }
-
             try {
-                const response = await apiFetch('/api/buy-hour', { method: 'POST' });
-                
+                const response = await apiFetch('/api/buy-hour', { method: 'POST' });        
                 if (response.ok) {
-                    const data = await response.json();
-                    
+                    import('./config.js').then(m => m.haptic('notificationOccurred', 'success'));
+                    const data = await response.json();                   
                     // Запуск эффектного быстрого переворота песочных часов на HUD
                     if (DOM.hourglassIcon) {
                         DOM.hourglassIcon.classList.remove('hourglass-fast-spin');
