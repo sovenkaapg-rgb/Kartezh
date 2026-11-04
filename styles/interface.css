@@ -457,15 +457,19 @@ body, html {
 }
 
 .auth-icon-hourglass {
-    font-size: 2rem;
-    filter: drop-shadow(0 0 10px rgba(214, 43, 72, 0.4));
+    width: 48px; /* Оптимальная ширина для заголовка */
+    height: auto;
+    object-fit: contain;
+    /* Накладываем небольшое свечение в цвет песка, убирая drop-shadow от смайлика */
+    filter: drop-shadow(0 0 8px rgba(247, 235, 211, 0.35)); 
     animation: authHourglassWave 3s infinite ease-in-out;
 }
 
 @keyframes authHourglassWave {
     0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-4px) rotate(10deg); }
+    50% { transform: translateY(-4px) rotate(8deg); } /* Чуть уменьшили угол для плавности арта */
 }
+
 
 .auth-decor-title h3 {
     margin: 0;
