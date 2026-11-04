@@ -71,27 +71,33 @@
             </div>
         </div>
     </div>
-
     <!-- НИЖНИЙ ХУД (ПОДВАЛ) -->
     <div class="bottom-hud-panel">
-        <!-- Левый угол: Кнопка колоды -->
         <button class="deck-button">Моя Колода</button>
-
-        <!-- Центр: Никнейм -->
         <div class="fixed-player-username">@Загрузка...</div>
-
-        <!-- Правый угол: Ссылка автора -->
         <a href="https://boosty.to/sovenkaart/donate" target="_blank" class="author-link">Поддержать</a>
     </div>
-
-    <!-- АВАРТИЙНАЯ ФОРМА ВХОДА -->
 <!-- Контейнер оверлея авторизации -->
-        <div id="auth-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
-            <p style="color: #fff;">Не удалось подключиться к Telegram сессии.</p>
-            <label style="color: #fff;" for="manual-username">Введите ваш Telegram никнейм вручную:</label>
-            <input type="text" id="manual-username" placeholder="username">
-            <button id="btn-manual-login">Войти</button>
+<div id="auth-overlay" class="auth-blur-overlay">
+    <div class="auth-card-box">
+        <!-- Декоративный магический элемент/заголовок -->
+        <div class="auth-decor-title">
+            <span class="auth-icon-hourglass">⏳</span>
+            <h3>Вход в игру</h3>
         </div>
+        <p class="auth-subtitle">Не удалось подключиться к Telegram сессии.</p>
+        <div class="auth-input-wrapper">
+            <label for="manual-username">Введите ваш никнейм вручную</label>
+            <div class="input-field-inner">
+                <span class="input-prefix">@</span>
+                <input type="text" id="manual-username" placeholder="username" autocomplete="off">
+            </div>
+        </div>
+        
+        <button id="btn-manual-login" class="btn-auth-submit">Войти в Колоду</button>
+    </div>
+</div>
+
 </div>
 <!-- Экран просмотра всей коллекции (Колоды) -->
 <div class="deck-screen">
