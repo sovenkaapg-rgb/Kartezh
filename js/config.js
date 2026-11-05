@@ -50,5 +50,28 @@ export function apiFetch(path, options = {}) {
 
 // Вибрация только там, где она поддерживается (убирает предупреждение в консоли)
 export function haptic(kind, type) {
-    if (tg?.initData && tg.isVersionAtLeast?.('6.1')) tg.HapticFeedback?.[kind]?.(type);
+    try {
+        if (tg && tg.initData && typeof tg.isVersionAtLeast === 'function' && tg.isVersionAtLeast('6.1')) {
+            tg.HapticFeedback?.[kind]?.(type);
+        }
+    } catch (e) {
+        console.log("Haptic не поддерживается окружением");
+    }
+}
+
+
+// Включает прелоадер: крутит часы и блокирует клики по экрану
+export function showLoader() {
+    document.body.style.pointerEvents = 'none'; // Блокируем абсолютно все клики на экране
+    if (DOM.hourglassIcon) {
+        DOM.hourglassIcon.classList.add('hourglass-fast-spin'); // Запускаем быстрый оборот из CSS
+    }
+}
+
+// Выключает прелоадер: возвращает всё в исходное состояние
+export function hideLoader() {
+    document.body.style.pointerEvents = 'auto'; // Возвращаем клики
+    if (DOM.hourglassIcon) {
+        DOM.hourglassIcon.classList.remove('hourglass-fast-spin'); // Возвращаем стандартную анимацию
+    }
 }

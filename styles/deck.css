@@ -40,7 +40,7 @@
     background-repeat: no-repeat;
     
     /* Размываем, приглушаем цвета и сильно затемняем, чтобы карты читались */
-    filter: blur(25px) grayscale(0.5) brightness(0.22) saturate(0.8); 
+    filter: grayscale(0.5) brightness(0.22) saturate(0.8);
     
     z-index: -1; /* Уводим на самый задний план внутри экрана колоды */
     pointer-events: none; /* Чтобы фон не мешал скроллить и нажимать на карты */
@@ -80,6 +80,7 @@
    СТИЛИЗАЦИЯ МИНИ-КАРТОЧЕК В СЕТКЕ КОЛОДЫ
    ========================================================================== */
 
+
 .deck-grid .card-container {
     width: 100% !important;
     height: 150px !important;
@@ -96,18 +97,47 @@
 
 .deck-grid .card-back {
     position: absolute !important;
-    top: 0;
-    left: 0;
+    top: 0; left: 0;
     width: 100% !important;
     height: 100% !important;
     border-radius: 10px !important;
     overflow: hidden !important;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
     transform: rotateY(0deg) !important;
 }
+
+.deck-grid .card-text-plate {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 50% !important; /* Чуть увеличили высоту для маленьких карт */
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    padding: 6px !important;
+    box-sizing: border-box !important;
+    z-index: 3 !important;
+}
+.deck-grid .card-title-text {
+    font-family: "Cinzel", serif !important;
+    font-size: 0.6rem !important;
+    font-weight: bold !important;
+    color: #ffffff !important;
+    margin-bottom: 2px !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8) !important;
+}
+
+.deck-grid .card-rarity-text {
+    font-family: "Montserrat", sans-serif !important;
+    font-size: 0.45rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px !important;
+}
+
 
 .deck-grid .card-image-bg {
     position: absolute !important;
@@ -150,22 +180,31 @@
     position: absolute !important;
     top: 6px !important;
     right: 6px !important;
-    bottom: auto !important;
-    left: auto !important;
     background: #a855f7 !important;
     color: #ffffff !important;
     font-size: 0.65rem !important;
-    padding: 1px 5px !important;
+    padding: 1px 6px !important;
     border-radius: 6px !important;
-    z-index: 3 !important;
+    z-index: 10 !important;
     box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    font-family: "Montserrat", sans-serif;
+    font-weight: 900;
 }
 
+/* Лок карты в коллекции */
 .deck-grid .card-container.card-locked {
-    filter: brightness(0.25) grayscale(1) !important;
-    opacity: 0.5 !important;
-    border: 1px dashed rgba(255, 255, 255, 0.15) !important;
+    filter: brightness(0.2) grayscale(1) !important;
+    opacity: 0.4 !important;
     cursor: not-allowed !important;
+}
+
+/* ==========================================================================
+   УНИВЕРСАЛЬНЫЙ КЛАСС СЖИГАНИЯ (Для стола и для Модалки)
+   ========================================================================== */
+.card-burn-animation, 
+.card-zoom-and-fly.card-burn-animation {
+    animation: burnAndAsh 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
+    pointer-events: none !important;
 }
 
 /* Разрешаем картам внутри сетки занимать всю доступную ячейку по ширине и высоте */

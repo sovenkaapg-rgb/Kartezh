@@ -135,3 +135,5 @@
 }
 @keyframes holoShine { 0%, 100% { transform: translate(-10%, -10%); } 50% { transform: translate(10%, 10%); } }
 @keyframes auraPulse { 0%, 100% { filter: drop-shadow(0 20px 45px rgba(0, 0, 0, 0.85)); } 50% { filter: drop-shadow(0 20px 45px rgba(255, 215, 0, 0.35)); } }
+
+

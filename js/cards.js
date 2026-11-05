@@ -1,14 +1,26 @@
- import { DOM, playerProfile, isDrawing, apiFetch, haptic } from './config.js';
+import { DOM, playerProfile, isDrawing, apiFetch, haptic } from './config.js';
 
 // Проверка кулдауна
 export function checkCooldownStatus() {
     if (!playerProfile) return;
     
-    // Если игрок УЖЕ в процессе выбора/анимации/свайпа, блокируем повторный спавн карт!
+    // Блокируем проверку и спавн, если карта В ПРОЦЕССЕ выбора, раскрытия или свайпа
     if (isDrawing.value === true) return; 
 
-    if (DOM.timeLeftEl.textContent === "Готово!" || DOM.timeLeftEl.textContent === "00ч 00м 00с") {
-        // Проверяем, что на столе действительно пусто и анимация не запущена
+    // Вычисляем реальную разницу во времени перед тем, как смотреть на текстовый статус HUD
+    const last = playerProfile.last_pack_opened;
+    const diff = last ? new Date(last).getTime() + 4 * 3600000 - Date.now() : 0;
+
+    // Если 4 часа еще не прошли, выходим из функции! Никаких карт на столе!
+    if (diff > 0) {
+        DOM.cardsDropZone.innerHTML = '';
+        return;
+    }
+
+    if (DOM.timeLeftEl.textContent === "Готово!" || DOM.timeLeftEl.textContent === "00ч 00м 00с" || diff <= 0) {
+        if (document.querySelector('.inline-action-buttons') || document.querySelector('.card-zoom-and-fly')) {
+            return;
+        }
         if (!DOM.cardsDropZone.querySelector('.card-container')) {
             renderThreeClosedCards();
         }
@@ -34,6 +46,7 @@ function renderThreeClosedCards() {
     }
     if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Выбирай с умом... или хватай любую.";
 }
+
 // Полет выбранной карты в центр экрана
 async function handleCardClick(clickedCard) {
     if (isDrawing.value) return; 
@@ -58,7 +71,7 @@ async function handleCardClick(clickedCard) {
     clickedCard.classList.remove('closed-choice-card', 'card-enter-left');
     clickedCard.classList.add('card-zoom-and-fly');
 
-    if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Смахни карту влево или вправо, чтобы раскрыть её...";
+    if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Смахни карту или просто нажми на неё, чтобы раскрыть...";
 
     try {
         const response = await apiFetch('/api/draw-card', { method: 'POST' });
@@ -93,10 +106,8 @@ async function handleCardClick(clickedCard) {
             setTimeout(() => {
                 initSwipeMechanic(clickedCard, result.card);
             }, 650);
-
-            playerProfile.points = result.points_updated || playerProfile.points;
-            if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = playerProfile.points;
-            playerProfile.last_pack_opened = new Date().toISOString(); 
+            
+            playerProfile.last_pack_opened = result.last_pack_opened || new Date().toISOString();
 
         } else {
             if (DOM.speechBubbleEl) {
@@ -117,12 +128,15 @@ async function handleCardClick(clickedCard) {
         renderThreeClosedCards();
     }
 }
-
 // МЕХАНИКА ИНТЕРАКТИВНОГО 3D-СВАЙПА
+// МЕХАНИКА ИНТЕРАКТИВНОГО 3D-СВАЙПА С ПОДДЕРЖКОЙ КЛИКА
 function initSwipeMechanic(cardEl, cardData) {
-    let startX = 0, currentX = 0, dragging = false;
-    const activationThreshold = window.innerWidth * 0.35; 
-    const resistanceCoef = 0.55; 
+    let startX = 0, startY = 0; // ИСПРАВЛЕНИЕ: запоминаем Y координату тоже для проверки тапа
+    let currentX = 0, currentY = 0;
+    let dragging = false;
+    
+    const activationThreshold = window.innerWidth * 0.25; 
+    const resistanceCoef = 0.75; 
     let lastHapticTick = 0;
 
     const innerEl = cardEl.querySelector('.card-inner');
@@ -133,14 +147,20 @@ function initSwipeMechanic(cardEl, cardData) {
 
     cardEl.addEventListener('pointerdown', (e) => {
         if (cardEl.classList.contains('flipped')) return;
+        if (e.cancelable) e.preventDefault();
+        
         dragging = true;
         startX = e.clientX;
+        startY = e.clientY; // ИСПРАВЛЕНИЕ
         currentX = 0;
+        currentY = 0;
         lastHapticTick = 0;
+        
         cardEl.setPointerCapture(e.pointerId);
         if (innerEl) innerEl.style.transition = 'none';
         cardEl.style.transition = 'none';
         
+        cardEl.style.transform = 'translate(-50%, -50%) scale(1.03)';
         haptic('impactOccurred', 'light');
     });
 
@@ -148,21 +168,19 @@ function initSwipeMechanic(cardEl, cardData) {
         if (!dragging) return;
         
         currentX = e.clientX - startX;
-        const dragDistance = currentX * resistanceCoef;
+        currentY = e.clientY - startY; // ИСПРАВЛЕНИЕ: трекаем движение по вертикали тоже
         
-        // 1. Вращаем карту по оси Y от -140 до 140 градусов
-        let rotateY = (dragDistance / activationThreshold) * 90;
+        const dragDistance = currentX * resistanceCoef;
+        let rotateY = (dragDistance / activationThreshold) * 75;
         rotateY = Math.max(-140, Math.min(140, rotateY)); 
 
-        // 2. Двигаем РОДИТЕЛЬСКИЙ контейнер по экрану (сохраняя центрирование -50%)
-        cardEl.style.transform = `translate(calc(-50% + ${dragDistance}px), -50%)`;
+        cardEl.style.transform = `translate(calc(-50% + ${dragDistance}px), -50%) scale(1.03)`;
 
-        // 3. Внутренний каркас ТОЛЬКО крутится вокруг своей оси, никуда не уезжая
         if (innerEl) {
-            innerEl.style.transform = `rotateY(${rotateY}deg) rotateZ(${(dragDistance / activationThreshold) * 3}deg)`;
+            innerEl.style.transform = `rotateY(${rotateY}deg) rotateZ(${(dragDistance / activationThreshold) * 4}deg)`;
         }
 
-        const currentTick = Math.floor(Math.abs(rotateY) / 20);
+        const currentTick = Math.floor(Math.abs(rotateY) / 15);
         if (currentTick !== lastHapticTick) {
             haptic('impactOccurred', 'soft');
             lastHapticTick = currentTick;
@@ -176,34 +194,41 @@ function initSwipeMechanic(cardEl, cardData) {
         cardEl.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
         if (innerEl) innerEl.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
         
+        // ИСПРАВЛЕНИЕ: Проверяем, был ли это просто тап (сдвиг пальца меньше 6 пикселей)
+        const moveDistance = Math.sqrt(currentX * currentX + currentY * currentY);
+        if (moveDistance < 6) {
+            // Если игрок просто кликнул — раскрываем карту в случайную сторону (180 или -180 градусов)
+            const randomDirection = Math.random() > 0.5 ? 180 : -180;
+            flipAndRevealCard(cardEl, cardData, randomDirection);
+            return;
+        }
+
+        // Логика свайпа, если палец сдвинулся далеко
         if (Math.abs(currentX) >= activationThreshold) {
             const finalDirection = currentX > 0 ? 180 : -180;
             flipAndRevealCard(cardEl, cardData, finalDirection);
         } else {
-            // Возвращаем в строгий центр экрана
-            cardEl.style.transform = 'translate(-50%, -50%)';
+            cardEl.style.transform = 'translate(-50%, -50%) scale(1)';
             if (innerEl) innerEl.style.transform = 'none';
             haptic('notificationOccurred', 'warning');
         }
     };
 
-
     cardEl.addEventListener('pointerup', end);
     cardEl.addEventListener('pointercancel', end);
 }
+
 
 // Финальное раскрытие
 function flipAndRevealCard(cardEl, cardData, finalAngle) {
     if (cardEl.classList.contains('flipped')) return;
 
     const innerEl = cardEl.querySelector('.card-inner');
-
-    // Карта остается центрированной на родителе
     cardEl.style.transform = 'translate(-50%, -50%)';
 
     if (innerEl) {
         innerEl.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        innerEl.style.transform = `rotateY(${finalAngle}deg)`; // Только чистый разворот
+        innerEl.style.transform = `rotateY(${finalAngle}deg)`;
     }
     
     cardEl.classList.add('flipped');
@@ -213,7 +238,6 @@ function flipAndRevealCard(cardEl, cardData, finalAngle) {
         renderInPlaceActionButtons(cardData, cardEl);
     }, 500);
 }
-
 
 // Создание кнопок "В колоду" и "Сжечь" прямо под картой
 function renderInPlaceActionButtons(cardData, cardEl) {
@@ -240,37 +264,75 @@ function renderInPlaceActionButtons(cardData, cardEl) {
 
         setTimeout(() => {
             btnWrapper.remove();
-            cardEl.remove(); // <--- ФИКС: Физически удаляем карту из document.body
+            cardEl.remove(); 
             DOM.cardsDropZone.innerHTML = '';
             const sceneOverlay = document.querySelector('.scene-dark-overlay');
             if (sceneOverlay) sceneOverlay.classList.remove('active');
+            
+            // Жестко блокируем спавн карт
             isDrawing.value = false;
+            checkCooldownStatus();
         }, 500);
     };
 
-    // Логика кнопки "Сжечь"
-btnWrapper.querySelector('.btn-inline-burn').onclick = async () => {
-    btnWrapper.classList.remove('visible');
-    try {
-        const response = await apiFetch(`/api/burn-card/${cardData.id}`, { method: 'POST' });
-        if (!response.ok) throw new Error('burn failed');
-        const resData = await response.json();
-        playerProfile.points = resData.new_points;
-        if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = playerProfile.points;
-    } catch (e) {
-        if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Огонь не разгорелся... Попробуй ещё раз.";
-        btnWrapper.classList.add('visible');
-        return;
-    }
-    cardEl.classList.add('card-burn-animation');
-    setTimeout(() => {
-        btnWrapper.remove();
-        cardEl.remove();
-        DOM.cardsDropZone.innerHTML = '';
-        document.querySelector('.scene-dark-overlay')?.classList.remove('active');
-        isDrawing.value = false;
-    }, 800);
-};
+    // Логика кнопки "Сжечь" на столе
+        // Логика кнопки "Сжечь" на столе
+    btnWrapper.querySelector('.btn-inline-burn').onclick = async () => {
+        btnWrapper.classList.remove('visible');
+        
+        const configModule = await import('./config.js');
+        configModule.showLoader(); 
+        
+        try {
+            // Жёстко держим флаг блокировки, чтобы ежесекундный таймер не спавнил новые карты в фоне
+            isDrawing.value = true;
+
+            const response = await apiFetch(`/api/burn-card/${cardData.id}`, { method: 'POST' });
+            if (!response.ok) throw new Error('burn failed');
+            const resData = await response.json();
+            
+            playerProfile.points = resData.new_points;
+            if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = playerProfile.points;
+            
+            if (DOM.speechBubbleEl && resData.bot_phrase) {
+                DOM.speechBubbleEl.textContent = resData.bot_phrase;
+            }
+
+            if (resData.last_pack_opened) {
+                playerProfile.last_pack_opened = resData.last_pack_opened;
+            }
+
+            cardEl.classList.add('card-burn-animation');
+            
+            setTimeout(() => {
+                btnWrapper.remove();
+                cardEl.remove();
+                DOM.cardsDropZone.innerHTML = '';
+                
+                const sceneOverlay = document.querySelector('.scene-dark-overlay');
+                if (sceneOverlay) sceneOverlay.classList.remove('active');
+                
+                configModule.hideLoader(); 
+                
+                // ИСПРАВЛЕНИЕ: Снимаем блокировку рисования ТОЛЬКО после того, как карта физически исчезла
+                isDrawing.value = false;
+                
+                // Проверяем статус. Теперь, так как дата обновилась, новые карты не вылезут раньше времени
+                checkCooldownStatus();
+            }, 800);
+
+        } catch (e) {
+            console.error("Ошибка при сжигании карты:", e);
+            if (DOM.speechBubbleEl) {
+                DOM.speechBubbleEl.textContent = "Огонь не разгорелся... Попробуй ещё раз.";
+            }
+            btnWrapper.classList.add('visible');
+            configModule.hideLoader(); 
+            // В случае ошибки возвращаем управление игроку
+            isDrawing.value = false;
+        }
+    };
+
 }
 
 // Окно детального просмотра (из коллекции)
@@ -289,7 +351,6 @@ export function openModal(card) {
         const isLegendary = rarityClass === 'legendary';
         const glareHtml = isLegendary ? '<div class="legendary-glare"></div>' : '';
 
-        // Наполнение плейсхолдера: убран класс flipped и инлайновые rotateY
         modalPlaceholder.innerHTML = `
             <div class="card-container modal-view">
                 <div class="card-inner" style="transform: none !important;">
@@ -306,12 +367,11 @@ export function openModal(card) {
                 </div>
             </div>`;
     }
-
+    
     realCardModal.style.setProperty('display', 'flex', 'important');
     realCardModal.style.setProperty('z-index', '999999', 'important');
-    setTimeout(() => realCardModal.style.opacity = '1', 10);
+    requestAnimationFrame(() => realCardModal.style.opacity = '1');
 
-    // Интерактивный 3D-наклон большой карты за курсором/пальцем
     setTimeout(() => {
         const tiltCard = realCardModal.querySelector('.modal-view');
         if (!tiltCard) return;
@@ -348,54 +408,10 @@ export function openModal(card) {
         tiltCard.addEventListener('touchend', resetTilt);
     }, 150);
 
-    // Обработчик кнопки "Оставить" (просто закрывает модалку)
     const keepBtn = realCardModal.querySelector('.btn-keep');
     if (keepBtn) {
         keepBtn.onclick = () => {
             realCardModal.style.opacity = '0';
             setTimeout(() => { realCardModal.style.display = 'none'; }, 400);
         };
-    }
-
-    // Обработчик кнопки "Сжечь" из коллекции
-    const burnBtn = realCardModal.querySelector('.btn-burn');
-    // Обработчик кнопки "Сжечь" из коллекции (Внутри функции openModal в cards.js)
-    if (burnBtn) {
-        burnBtn.textContent = `🔥 Сжечь (+${card.point_value || 10} 🪙)`;
-        burnBtn.onclick = async () => {
-            const modalViewCard = realCardModal.querySelector('.modal-card-placeholder .card-container');
-            if (modalViewCard) modalViewCard.classList.add('card-burn-animation');
-
-            setTimeout(() => {
-                realCardModal.style.opacity = '0';
-                setTimeout(() => { realCardModal.style.display = 'none'; }, 200);
-            }, 300); 
-
-            try {
-                const configModule = await import('./config.js');
-                const response = await configModule.apiFetch(`/api/burn-card/${card.id}`, { method: 'POST' });
-                
-                if (response.ok) {
-                    const resData = await response.json();
-                    configModule.playerProfile.points = resData.new_points;
-                    if (configModule.DOM.coinBalanceEl) configModule.DOM.coinBalanceEl.textContent = resData.new_points;
-
-                    const { renderDeckGrid } = await import('./deck.js');
-                    await renderDeckGrid();
-                } else {
-                    const err = await response.json();
-                    // Ошибку сжигания отправляем в бабл бота вместо alert
-                    if (configModule.DOM.speechBubbleEl) {
-                        configModule.DOM.speechBubbleEl.textContent = `черт не горит ${err.detail || ""}`;
-                    }
-                }
-                } catch (e) {
-                console.error("Ошибка сжигания из коллекции:", e);
-                const configModule = await import('./config.js');
-                if (configModule.DOM.speechBubbleEl) {
-                    configModule.DOM.speechBubbleEl.textContent = "Не могу связаться с сервером, огонь затухает...";
-                }
-            }
-        };
-    }
-}
+    }}

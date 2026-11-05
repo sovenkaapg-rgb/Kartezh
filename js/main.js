@@ -131,7 +131,32 @@ function startCooldownTimer() {
     }, 1000);
 }
 
+let refreshing = false;
+async function refreshProfile() {
+    if (refreshing || isDrawing.value || !playerProfile) return;
+    refreshing = true;
+    try {
+        const r = await apiFetch('/api/me');
+        if (!r.ok) return;
+        const data = await r.json();
+        setPlayerProfile(data.player);
+        updateUI();
 
+        // Если карту уже вытянули в боте, убираем лишние карты со стола
+        const last = data.player.last_pack_opened;
+        if (last && new Date(last).getTime() + 4 * 3600000 > Date.now()) {
+            DOM.cardsDropZone.innerHTML = '';
+        }
+    } catch (e) {
+        /* нет связи, оставляем что было */
+    } finally {
+        refreshing = false;
+    }
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshProfile();
+});
 // Настройка слушателей событий кликов
 function setupEventListeners() {
     // Открытие колоды
@@ -141,10 +166,8 @@ function setupEventListeners() {
         deckBtn.onclick = async () => {
             // Если экран уже открывается или открыт, ничего не делаем
             if (DOM.deckScreen.style.display === 'flex') return;
-            
-            // Сначала рендерим (внутри включится защита)
+            await refreshProfile();
             await renderDeckGrid();
-            
             DOM.deckScreen.style.display = 'flex';
             setTimeout(() => DOM.deckScreen.style.opacity = '1', 10);
         };
@@ -167,10 +190,14 @@ function setupEventListeners() {
                 }
                 return;
             }
+            
+            const configModule = await import('./config.js');
+            configModule.showLoader();
             try {
                 const response = await apiFetch('/api/buy-hour', { method: 'POST' });        
                 if (response.ok) {
                     import('./config.js').then(m => m.haptic('notificationOccurred', 'success'));
+                    configModule.haptic('notificationOccurred', 'success');
                     const data = await response.json();                   
                     // Запуск эффектного быстрого переворота песочных часов на HUD
                     if (DOM.hourglassIcon) {
@@ -178,19 +205,20 @@ function setupEventListeners() {
                         void DOM.hourglassIcon.offsetWidth; 
                         DOM.hourglassIcon.classList.add('hourglass-fast-spin');
                     }
-
                     playerProfile.points = data.points;
                     playerProfile.last_pack_opened = data.last_pack_opened;
-                    
                     updateUI();
-                } else { 
-                    const res = await response.json();
-                     if (DOM.speechBubbleEl) {
-                    DOM.speechBubbleEl.textContent = "Сервер времени заклинило, не могу отнять час!";
-                }
-                }
+                    } else {
+                        const res = await response.json().catch(() => ({}));
+                        if (DOM.speechBubbleEl) {
+                            DOM.speechBubbleEl.textContent = res.detail || "Сервер времени заклинило, не могу отнять час!";
+                        }
+                    }
             } catch (e) { 
                 if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Сервер молчит... Попробуй позже.";
+            }finally {
+                // Сервер ответил (успешно или с ошибкой) — выключаем блокировку экрана
+                configModule.hideLoader();
             }
         };
     }
