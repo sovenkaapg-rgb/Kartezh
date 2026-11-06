@@ -134,3 +134,5 @@ export function applyBurn(cardId) {
 
 // Новая карта из «Моей колоды» на столе: следующий вход перечитает всё
 export function invalidateDeck() { deckCache = null; }
+
+

@@ -218,3 +218,133 @@
     max-height: 100% !important;
 }
 
+/* ==================== ВКЛАДКИ КОЛОДЫ ==================== */
+.deck-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.deck-tab {
+    background: #2b131d; border: 1px solid #4a1a2b; color: #a38593;
+    padding: 8px 20px; border-radius: 20px; font-weight: bold;
+    cursor: pointer; transition: 0.3s;
+}
+.deck-tab.active {
+    background: #852538; color: #f7ebd3; border-color: #b8324b;
+    box-shadow: 0 0 10px rgba(133, 37, 56, 0.5);
+}
+
+/* ==================== МАГАЗИН ПАКОВ ==================== */
+.pack-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 0 10px;
+}
+.pack-row {
+    background: #1c0b12; border: 1px solid #4a1a2b; border-radius: 12px;
+    padding: 20px; /* Увеличили отступы */
+    display: flex; justify-content: space-between; align-items: center;
+}
+.pack-info h3 { 
+    margin: 0 0 8px 0; 
+    color: #f7ebd3; 
+    font-size: 1.2rem; /* Увеличили шрифт */
+    font-family: "Cinzel", serif;
+}
+.pack-info p { 
+    margin: 0; 
+    color: #a38593; 
+    font-size: 0.85rem; /* Увеличили шрифт */
+}
+.btn-buy-pack {
+    background: linear-gradient(180deg, #852538 0%, #4a101b 100%);
+    border: 1px solid #b8324b; color: #fff; 
+    padding: 12px 20px; /* Сделали кнопку больше */
+    border-radius: 8px; 
+    font-weight: bold; 
+    font-size: 1rem;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+.btn-buy-pack:active { transform: scale(0.95); }
+.btn-buy-pack:disabled {
+    background: #2b131d;
+    border-color: #4a1a2b;
+    color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+/* ==================== ОТКРЫТИЕ ПАКА ==================== */
+.pack-opening-screen {
+    position: fixed; inset: 0; background: rgba(6, 3, 10, 0.95);
+    display: none; justify-content: center; align-items: center;
+    flex-direction: column; z-index: 9999999;
+}
+.envelope-wrapper {
+    position: relative; width: 260px; height: 180px; cursor: pointer;
+    perspective: 1000px;
+}
+.envelope-body {
+    position: absolute; inset: 0; background: #2b131d;
+    border: 2px solid #5c2034; border-radius: 10px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.9); z-index: 1;
+}
+.envelope-top-flap {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100px;
+    background: #3b1624; border-bottom: 2px solid #5c2034;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: top center; z-index: 3; transition: transform 0.6s ease;
+}
+.envelope-wrapper.opened .envelope-top-flap { transform: rotateX(180deg); z-index: 0; }
+.pack-cards-fan { position: absolute; top: 50%; left: 50%; width: 0; height: 0; z-index: 2; }
+
+/* Карты в веере (рубашкой вверх) */
+.fan-card {
+    position: absolute; width: 90px; height: 130px;
+    background-image: url('../assets/deck_texture.png');
+    background-size: cover; background-position: center;
+    border-radius: 8px; overflow: hidden; border: 2px solid #5c2034;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+    transform-origin: center 200px;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotateY(180deg);
+    cursor: pointer;
+    transform-style: preserve-3d;
+}
+.fan-card .card-inner {
+    width: 100%; height: 100%; position: relative;
+    transition: transform 0.4s ease;
+    transform-style: preserve-3d;
+}
+.fan-card.revealed {
+    opacity: 1;
+    /* JS выставит правильный угол и позицию */
+}
+.fan-card.flipped .card-inner {
+    transform: rotateY(180deg); /* Переворачиваем карту */
+}
+
+/* Внутренности карты для веера */
+.fan-card-front, .fan-card-back {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: 6px; overflow: hidden;
+}
+.fan-card-front { background: url('../assets/deck_texture.png') center/cover; }
+.fan-card-back { transform: rotateY(180deg); }
+
+.pack-swipe-hint {
+    color: #e3d2bd; margin-top: 40px; font-weight: bold;
+    animation: pulse 2s infinite; z-index: 10; font-size: 1.1rem;
+}
+@keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.btn-collect-pack {
+    margin-top: 30px; background: linear-gradient(180deg, #852538 0%, #4a101b 100%);
+    border: 1px solid #b8324b; color: #f7ebd3; padding: 12px 30px;
+    border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10; display: none;
+}

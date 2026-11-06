@@ -622,3 +622,70 @@ body, html {
     background: linear-gradient(180deg, #4a101b 0%, #240a13 100%);
 }
 
+/* --- Ежедневная награда на песочных часах --- */
+
+/* Свечение и увеличение, когда награда доступна */
+.spinning-hourglass-wrapper.daily-ready {
+    transform: scale(1.15); /* Увеличиваем */
+    animation: dailyPulse 2s infinite ease-in-out;
+}
+
+.spinning-hourglass-wrapper.daily-ready .icon-hourglass {
+    filter: sepia(0.4) hue-rotate(310deg) drop-shadow(0 0 10px #ffb800) brightness(1.3); /* Делаем ярче */
+}
+
+@keyframes dailyPulse {
+    0%, 100% { transform: scale(1.15); }
+    50% { transform: scale(1.25); }
+}
+
+/* Восклицательный знак */
+.daily-badge {
+    position: absolute;
+    top: -10px;
+    right: -15px;
+    background: #e11d48; /* Красный */
+    color: white;
+    font-weight: 900;
+    font-size: 0.9rem;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 10px rgba(225, 29, 72, 0.8);
+    animation: badgeBounce 1s infinite alternate;
+    z-index: 10;
+}
+
+@keyframes badgeBounce {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-5px); }
+}
+
+/* Всплывающий текст с монетами */
+.floating-coins {
+    position: absolute;
+    left: -20px; /* С левой стороны */
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ffb800;
+    font-weight: 900;
+    font-size: 1.2rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+}
+
+/* Анимация всплытия монет */
+.floating-coins.show {
+    animation: floatUp 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes floatUp {
+    0% { opacity: 0; transform: translateY(-50%) translateX(0); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-150%) translateX(-10px); }
+}

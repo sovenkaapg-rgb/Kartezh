@@ -56,6 +56,7 @@ export function apiFetch(path, options = {}) {
 // Вибрация только там, где она поддерживается (убирает предупреждение в консоли)
 export function haptic(kind, type) {
     try {
+        if (localStorage.getItem('haptics_disabled') === 'true') return; // <--- ДОБАВИТЬ ЭТУ СТРОКУ
         if (tg && tg.initData && typeof tg.isVersionAtLeast === 'function' && tg.isVersionAtLeast('6.1')) {
             tg.HapticFeedback?.[kind]?.(type);
         }
