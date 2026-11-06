@@ -121,9 +121,14 @@
 }
 /* Отменяем зеркальный разворот 3D-матрицы исключительно внутри модального окна */
 .modal-card-placeholder .card-container.modal-view .card-back {
-    transform: none !important;
+    /* transform: none !important; <-- УДАЛИТЬ ЭТУ СТРОКУ */
+    transform: rotateY(180deg) !important; /* Лицо должно быть изначально развернуто в 3D */
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
 }
-
+.modal-card-placeholder .card-container.modal-view .card-inner {
+    transform: rotateY(180deg) !important;
+}
 @keyframes luxurySparkle {
     0%, 100% { transform: translate(0, 0) rotate(0deg); filter: brightness(1) opacity(0.6); }
     50% { transform: translate(-4%, -3%) rotate(1deg); filter: brightness(1.6) opacity(1); }

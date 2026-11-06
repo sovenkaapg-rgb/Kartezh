@@ -8,7 +8,7 @@
     transform-origin: center center !important;
     transition: transform 0.15s ease-out;
 }
-/* Рубашка и Лицо карты — принудительно наследуют размеры родительского контейнера */
+
 /* Рубашка и Лицо карты */
 .card-front, .card-back {
     position: absolute !important;

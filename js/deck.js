@@ -1,5 +1,5 @@
 import { DOM, playerProfile, apiFetch } from './config.js';
-import { openModal } from './cards.js';
+import { openModal } from './swipe.js';
 
 let isDeckLoading = false;
 let deckCache = null; // { allCards, userCards }
@@ -58,7 +58,7 @@ function buildGrid(grid, allCards, userCards) {
             el.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                openModal(card);
+                openModal({ ...card, quantity: owned.quantity || 1 });
             });
         } else {
             el.className = 'card-container card-locked';
@@ -92,12 +92,15 @@ export async function renderDeckGrid() {
             return;
         }
         // Перерисовываем только если что-то реально изменилось
-        if (!deckCache || JSON.stringify(deckCache.userCards) !== JSON.stringify(fresh.userCards)) {
-            const scroll = DOM.deckScreen?.scrollTop || 0;
-            buildGrid(grid, fresh.allCards, fresh.userCards);
-            if (DOM.deckScreen) DOM.deckScreen.scrollTop = scroll;
-        }
-        deckCache = fresh;
+            const changed = !deckCache
+                || deckCache.allCards.length !== fresh.allCards.length
+                || JSON.stringify(deckCache.userCards) !== JSON.stringify(fresh.userCards);
+            if (changed) {
+                const scroll = DOM.deckScreen?.scrollTop || 0;
+                buildGrid(grid, fresh.allCards, fresh.userCards);
+                if (DOM.deckScreen) DOM.deckScreen.scrollTop = scroll;
+                deckCache = fresh;}
+
     } catch (error) {
         console.error("Ошибка при выполнении renderDeckGrid:", error);
         if (!deckCache) {

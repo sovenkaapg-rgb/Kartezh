@@ -269,22 +269,14 @@ body, html {
 .cards-drop-zone {
     position: absolute !important;
     top: auto !important;
-    
-    /* Опускаем карты в самый центр магического круга на столе */
-    bottom: -50px !important;       
-    
+    bottom: 20px !important;       
     width: 100% !important;
     height: 120px !important;
-    
     display: flex !important;
     flex-direction: row !important;
     justify-content: center !important;
     align-items: flex-end !important;
-    
-    /* Оставляем увеличенный gap, чтобы карты не слипались */
     gap: 24px !important;          
-    
-    /* Поднимаем слой выше стола (у стола z-index: 4), чтобы карты лежали НА нем */
     z-index: 99999 !important;
     pointer-events: auto !important;
 }
@@ -330,7 +322,7 @@ body, html {
     /* ФИКС: Убираем отсюда transform-style, оставляем только перспективу */
     perspective: 1400px !important; 
     
-    animation: flyInFaceEpic 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+     animation: flyInFaceEpic 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
 }
 
 /* ФИКС: Внутренний каркас карты, который мы непосредственно крутим в JS */
@@ -370,7 +362,7 @@ body, html {
     width: 100% !important;
     height: 100% !important;
     transform-style: preserve-3d !important;
-    transform-origin: center center 0px !important;
+    transform-origin: center center 0 !important;
     margin: 0 !important;
     padding: 0 !important;
 }

@@ -62,19 +62,6 @@ async function loginWithNickname(usernameStr) {
         say("Назови хотя бы имя...");
     }
 }
-
-async function finishLogin(data) {
-    setAuthToken(data.token);
-    setPlayerProfile(data.player);
-    setUser({ id: data.player.user_id, username: data.player.username });
-
-    updateUI();
-    startCooldownTimer();
-    setupEventListeners();
-    initParallax();
-
-    if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
-}
 // Динамическое обновление UI элементов HUD-панели
 function updateUI() {
     if (!playerProfile) return;
@@ -94,7 +81,6 @@ function updateUI() {
     const nameEl = document.querySelector('.fixed-player-username');
     if (nameEl) nameEl.textContent = `@${playerProfile.username}`;
 }
-
 // Ежесекундный таймер кулдауна пака
 let timerState = null; // 'ready' | 'waiting'
 function setTimerState(state) {
@@ -110,13 +96,70 @@ function setTimerState(state) {
 }
 
 let timerInterval = null;
-function startCooldownTimer() {
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-        if (isDrawing.value) return; // во время выбора карты не трогаем интерфейс
-        const last = playerProfile?.last_pack_opened;
-        const diff = last ? new Date(last).getTime() + 4 * 3600000 - Date.now() : 0;
 
+let refreshing = false;
+
+
+let timeSkew = 0; // Смещение времени клиента относительно сервера
+
+async function finishLogin(data) {
+    setAuthToken(data.token);
+    setPlayerProfile(data.player);
+    setUser({ id: data.player.user_id, username: data.player.username });
+
+    // Расчет смещения времени
+    if (data.server_time) {
+        timeSkew = data.server_time - Date.now();
+    }
+
+    updateUI();
+    startCooldownTimer();
+    setupEventListeners();
+    initParallax();
+
+    // Проверка зависшего дропа при входе
+    if (data.pending_card) {
+        handlePendingCard(data.pending_card);
+    }
+
+    if (DOM.authOverlay) DOM.authOverlay.style.display = 'none';
+}
+
+async function refreshProfile() {
+    if (isDrawing.value || !playerProfile) return;
+    try {
+        const r = await apiFetch('/api/me');
+        if (!r.ok) return;
+        const data = await r.json();
+        
+        // Корректируем время при каждом обновлении профиля
+        if (data.server_time) timeSkew = data.server_time - Date.now();
+        
+        setPlayerProfile(data.player);
+        updateUI();
+
+        if (data.pending_card) {
+            handlePendingCard(data.pending_card);
+            return;
+        }
+
+        const last = data.player.last_pack_opened;
+        // Используем скорректированное время вместо Date.now()
+        if (last && new Date(last).getTime() + 4 * 3600000 > (Date.now() + timeSkew)) {
+            DOM.cardsDropZone.innerHTML = '';
+        }
+    } catch (e) {
+        // Ошибка сети — аккуратно повторяем попытку через 3 секунды, не ломая UI
+        setTimeout(refreshProfile, 3000);
+    }
+}
+
+function startCooldownTimer() {
+    if (window.timerInterval) clearInterval(window.timerInterval);
+    window.timerInterval = setInterval(() => {
+        if (isDrawing.value) return; 
+        const last = playerProfile?.last_pack_opened;
+        const diff = last ? new Date(last).getTime() + 4 * 3600000 - (Date.now() + timeSkew) : 0;
         if (diff <= 0) {
             DOM.timeLeftEl.textContent = "Готово!";
             setTimerState('ready');
@@ -131,27 +174,44 @@ function startCooldownTimer() {
     }, 1000);
 }
 
-let refreshing = false;
-async function refreshProfile() {
-    if (refreshing || isDrawing.value || !playerProfile) return;
-    refreshing = true;
-    try {
-        const r = await apiFetch('/api/me');
-        if (!r.ok) return;
-        const data = await r.json();
-        setPlayerProfile(data.player);
-        updateUI();
-
-        // Если карту уже вытянули в боте, убираем лишние карты со стола
-        const last = data.player.last_pack_opened;
-        if (last && new Date(last).getTime() + 4 * 3600000 > Date.now()) {
-            DOM.cardsDropZone.innerHTML = '';
-        }
-    } catch (e) {
-        /* нет связи, оставляем что было */
-    } finally {
-        refreshing = false;
+// Функция подхвата зависшей карты (если игра закрылась до свайпа)
+function handlePendingCard(pendingCard) {
+    isDrawing.value = true;
+    DOM.cardsDropZone.innerHTML = '';
+    
+    // Создаем контейнер карты сразу по центру и в перевернутом состоянии
+    const cardContainer = document.createElement('div');
+    cardContainer.className = 'card-container settled flipped'; // Добавлен класс flipped
+    cardContainer.style.filter = 'drop-shadow(0 25px 50px rgba(0,0,0,0.9))';
+    cardContainer.innerHTML = `<div class="card-inner" style="transform: rotateY(180deg);"><div class="card-front"></div></div>`;
+    DOM.cardsDropZone.appendChild(cardContainer);
+    
+    document.querySelector('.scene-dark-overlay')?.classList.add('active');
+    
+    let rarityClass = 'common';
+    const r = (pendingCard.rarity || '').toLowerCase();
+    if (r === 'редкая' || r === 'редк') rarityClass = 'rare';
+    if (r === 'лега' || r === 'легендарная') rarityClass = 'legendary';
+    
+    const innerEl = cardContainer.querySelector('.card-inner');
+    if (innerEl) {
+        innerEl.innerHTML += `
+            <div class="card-back rarity-${rarityClass}">
+                <img class="card-image-bg" src="${pendingCard.image_url}">
+                <div class="card-frame-border"></div>
+                <div class="card-id-badge">${pendingCard.id || '?'}</div>
+                <div class="card-text-plate">
+                    <div class="card-title-text">${pendingCard.title}</div>
+                    <div class="card-rarity-text">${pendingCard.rarity ? pendingCard.rarity.toUpperCase() : 'ОБЫЧНАЯ'}</div>
+                </div>
+                ${rarityClass === 'legendary' ? '<div class="legendary-glare"></div>' : ''}
+            </div>`;
     }
+    
+    // Импортируем экспортную функцию и сразу вешаем интерфейс кнопок под карту
+    import('./swipe.js').then(m => {
+        m.renderInPlaceActionButtons(pendingCard, cardContainer);
+    });
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -264,5 +324,4 @@ if (DOM.manualLoginBtn) {
         await loginWithNickname(name);
     });
 }
-
 window.addEventListener('DOMContentLoaded', () => setTimeout(startApp, 100));

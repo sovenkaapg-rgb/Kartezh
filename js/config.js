@@ -45,8 +45,13 @@ export function setAuthToken(t) { authToken = t; }
 export function apiFetch(path, options = {}) {
     const headers = { ...(options.headers || {}) };
     if (authToken) headers.Authorization = `Bearer ${authToken}`;
-    return fetch(`${API_URL}${path}`, { ...options, headers });
+    
+    return fetch(`${API_URL}${path}`, { 
+        ...options, 
+        headers: headers // Явно принудительно прописываем собранные headers
+    });
 }
+
 
 // Вибрация только там, где она поддерживается (убирает предупреждение в консоли)
 export function haptic(kind, type) {
@@ -74,4 +79,22 @@ export function hideLoader() {
     if (DOM.hourglassIcon) {
         DOM.hourglassIcon.classList.remove('hourglass-fast-spin'); // Возвращаем стандартную анимацию
     }
+}
+
+export function toast(text, ms = 2400) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = text;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, ms);
+}
+export function askNotifyPermissionOnce() {
+    try {
+        if (!tg?.initData || !tg.requestWriteAccess || !tg.isVersionAtLeast?.('6.9')) return;
+        if (tg.initDataUnsafe?.user?.allows_write_to_pm) return;   // уже разрешено
+        if (localStorage.getItem('notify_asked')) return;
+        localStorage.setItem('notify_asked', '1');
+        tg.requestWriteAccess(() => {});
+    } catch (e) { /* не критично */ }
 }
