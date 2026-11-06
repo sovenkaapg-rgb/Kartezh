@@ -2,6 +2,9 @@ import { API_URL, DOM, tg, playerProfile, isDrawing, setPlayerProfile, setUser, 
 import { checkCooldownStatus } from './cards.js';
 import { renderDeckGrid } from './deck.js';
 import { initPackSystem } from './packs.js';
+import { initMinigame } from './minigame.js';
+
+
 function say(text) {
     if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = text;
 }
@@ -101,9 +104,21 @@ async function finishLogin(data) {
 
     updateUI();
     startCooldownTimer();
+        // Внутри finishLogin, перед setupEventListeners()
+    try {
+        const res = await apiFetch('/api/minigame/status');
+        if (res.ok) {
+            const data = await res.json();
+            const badge = document.getElementById('mg-attempts-badge');
+            if (badge) badge.textContent = `${data.plays_left}/${data.max_plays}`;
+        }
+    } catch(e) {}
+    
+    
     setupEventListeners();
     initParallax();
-     initPackSystem();
+    initPackSystem();
+    initMinigame();
     if (data.pending_card) {
         handlePendingCard(data.pending_card);
     }
@@ -261,6 +276,29 @@ function setupEventListeners() {
             dailyBtn.classList.remove('daily-ready');
             badge.style.display = 'none';
         }
+    }
+    
+        // --- ВХОД В МИНИ-ИГРУ (Клик по магическому кругу на столе) ---
+       const magicRing = document.querySelector('.magic-ring-container');
+    if (magicRing) {
+        magicRing.onclick = () => {
+            if (isDrawing.value || document.querySelector('.card-zoom-and-fly')) return;
+            
+            // Если на столе есть карты
+            if (DOM.cardsDropZone.querySelector('.card-container')) {
+                if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Сначала выбери карту!";
+                return;
+            }
+
+            // Проверяем бейдж
+            const badge = document.getElementById('mg-attempts-badge');
+            if (badge && badge.textContent.startsWith('0/')) {
+                if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Твои силы на сегодня иссякли. Приходи завтра.";
+                return;
+            }
+
+            if (window.startMinigame) window.startMinigame();
+        };
     }
 
     // Вызываем при старте

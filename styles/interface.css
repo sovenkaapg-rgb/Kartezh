@@ -10,7 +10,20 @@ body, html {
     background-color: #0c0714;
     font-family: sans-serif;
 }
+/* Глобальный запрет выделения текста (чтобы браузер не выделял синим) */
+body {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none; /* Отключает меню при долгом тапе на iOS */
+}
 
+/* Специально для экрана мини-игры: запрет скролла и зума */
+.mg-screen {
+    touch-action: none; /* Запрещает жесты зума/скролла браузера */
+    overscroll-behavior: none;
+}
 #app-container, .main-app-screen {
     position: relative;
     width: 100%;
@@ -689,3 +702,77 @@ body, html {
     20% { opacity: 1; }
     100% { opacity: 0; transform: translateY(-150%) translateX(-10px); }
 }
+
+
+/* Экран мини-игры */
+.mg-screen {
+    position: fixed; inset: 0; background: rgba(6, 3, 10, 0.95);
+    z-index: 9999999; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; backdrop-filter: blur(5px);
+}
+.mg-header {
+    position: absolute; top: 20px; left: 0; width: 100%;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 20px; box-sizing: border-box; z-index: 10;
+}
+.mg-header h2 { color: #f7ebd3; font-family: "Cinzel Decorative", serif; margin: 0; font-size: 1.4rem; text-shadow: 0 0 10px #852538; }
+.mg-timer-box { 
+    background: #2b131d; border: 1px solid #852538; color: #e11d48; 
+    padding: 5px 15px; border-radius: 8px; font-weight: 900; font-size: 1.2rem;
+    box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
+}
+
+/* Фаза запоминания */
+.mg-memorize {
+    text-align: center; color: #e3d2bd; position: absolute; top: 50%; transform: translateY(-50%);
+}
+.mg-memorize p { font-size: 1.2rem; margin-bottom: 15px; font-family: "Montserrat", sans-serif; }
+.mg-big-symbol { 
+    font-size: 6rem; color: #ffb800; text-shadow: 0 0 30px #ffb800, 0 0 60px #e11d48;
+    animation: pulseSymbol 1s infinite alternate;
+}
+@keyframes pulseSymbol { 0% { transform: scale(1); } 100% { transform: scale(1.1); } }
+
+/* Игровое поле */
+.mg-play-area {
+    width: 95%; max-width: 400px; height: 70vh; max-height: 500px;
+    border: 2px dashed #4a1a2b; border-radius: 16px; position: relative;
+    background: rgba(28, 11, 18, 0.5); overflow: hidden; display: flex;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 15px; /* Расстояние между символами */
+    padding: 15px;
+    align-items: center;
+    justify-items: center;
+}
+
+/* Летающие символы */
+.mg-floating-symbol {
+    position: absolute; /* Убираем absolute */
+    font-size: 2.5rem; 
+    color: #a38593;
+    cursor: pointer; 
+    transition: transform 0.1s, opacity 0.1s;
+    text-shadow: 0 0 10px rgba(163, 133, 147, 0.5);
+    user-select: none;
+}
+.mg-floating-symbol:active { transform: scale(1.3); }
+.mg-floating-symbol.correct { color: #ffb800; text-shadow: 0 0 20px #ffb800; }
+.mg-floating-symbol.wrong { color: #e11d48; text-shadow: 0 0 20px #e11d48; }
+
+/* Результат */
+.mg-result-box {
+    position: absolute; background: #1c0b12; border: 2px solid #4a1a2b;
+    padding: 20px; border-radius: 16px; text-align: center; z-index: 20;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+}
+.mg-result-box h3 { color: #f7ebd3; margin-top: 0; }
+.btn-mg-claim, .btn-mg-close {
+    padding: 12px 20px; border-radius: 8px; font-weight: bold; 
+    cursor: pointer; width: 100%; margin-top: 10px; border: none;
+}
+.btn-mg-claim { background: linear-gradient(180deg, #852538 0%, #4a101b 100%); color: #fff; border: 1px solid #b8324b; }
+.btn-mg-close { background: #333; color: #fff; }
+
+
+/* Символы теперь не абсолютно позиционированы, а сидят в ячейках */

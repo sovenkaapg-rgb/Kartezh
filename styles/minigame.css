@@ -1,0 +1,56 @@
+.mg-screen {
+    position: fixed; inset: 0; background: rgba(6, 3, 10, 0.95);
+    z-index: 9999999; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; backdrop-filter: blur(5px);
+}
+
+.mg-header {
+    position: absolute; top: 20px; left: 0; width: 100%;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 20px; box-sizing: border-box; z-index: 10;
+}
+.mg-header h2 { color: #f7ebd3; font-family: "Cinzel Decorative", serif; margin: 0; font-size: 1.4rem; text-shadow: 0 0 10px #852538; }
+.mg-timer-box { 
+    background: #2b131d; border: 1px solid #852538; color: #e11d48; 
+    padding: 5px 15px; border-radius: 8px; font-weight: 900; font-size: 1.2rem;
+    box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
+}
+
+.mg-play-area {
+    width: 90%; max-width: 400px; height: 70vh; max-height: 500px;
+    border: 2px dashed #4a1a2b; border-radius: 16px; position: relative;
+    background: rgba(28, 11, 18, 0.5); touch-action: none; overflow: hidden;
+}
+
+/* Руны (точки) */
+.mg-rune {
+    position: absolute; width: 30px; height: 30px; transform: translate(-50%, -50%);
+    background: radial-gradient(circle, #ffb800 0%, #852538 70%);
+    border-radius: 50%; box-shadow: 0 0 15px #ffb800; cursor: crosshair;
+    z-index: 2; transition: transform 0.1s;
+}
+.mg-rune.active { transform: translate(-50%, -50%) scale(1.5); box-shadow: 0 0 25px #fff; }
+
+/* Линия */
+.mg-line-svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 1;
+}
+.mg-line-path {
+    fill: none; stroke: #e11d48; stroke-width: 4; stroke-linecap: round;
+    filter: drop-shadow(0 0 8px #e11d48);
+}
+
+.mg-result-box {
+    position: absolute; background: #1c0b12; border: 2px solid #4a1a2b;
+    padding: 20px; border-radius: 16px; text-align: center; z-index: 20;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+}
+.mg-result-box h3 { color: #f7ebd3; margin-top: 0; }
+
+.btn-mg-claim, .btn-mg-close {
+    padding: 12px 20px; border-radius: 8px; font-weight: bold; 
+    cursor: pointer; width: 100%; margin-top: 10px; border: none;
+}
+.btn-mg-claim { background: linear-gradient(180deg, #852538 0%, #4a101b 100%); color: #fff; border: 1px solid #b8324b; }
+.btn-mg-close { background: #333; color: #fff; }

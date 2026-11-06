@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="styles/deck.css">
     <link rel="stylesheet" href="styles/modal.css">
     <link rel="stylesheet" href="styles/style.css">
+    <link rel="stylesheet" href="styles/minigame.css">
+    
     <link rel="icon" href="data:,">
 </head>
 
@@ -61,6 +63,7 @@
         <div class="front-table-layer">
             <img class="table-img" src="assets/table.png" alt="Стол">
             <div class="magic-ring-container">
+                 <div id="mg-attempts-badge" class="mg-attempts-badge">4/4</div>
                 <div class="cards-drop-zone"></div>
             </div>
         </div>
@@ -155,7 +158,36 @@
             <button class="btn-burn" style="padding: 12px 24px; border-radius: 8px; border: none; background: #b91c1c; color: #fff; font-weight: bold; cursor: pointer;">🔥 Сжечь</button>
         </div>
     </div>
+  
+<!-- Экран мини-игры "Символ Судьбы" -->
+<div id="minigame-screen" class="mg-screen" style="display: none;">
+    <div class="mg-header">
+        <h2>Символ Судьбы</h2>
+        <div class="mg-timer-box">
+            <span id="mg-timer">15</span>с
+        </div>
+    </div>
 
+    <!-- Экран запоминания -->
+    <div id="mg-memorize-phase" class="mg-memorize">
+        <p>Запомни свой символ:</p>
+        <div id="mg-target-symbol" class="mg-big-symbol">?</div>
+    </div>
+    
+    <!-- Игровое поле -->
+    <div class="mg-play-area" id="mg-play-area" style="display: none;">
+        <!-- Сюда будут спавниться символы -->
+    </div>
+
+    <!-- Результат -->
+    <div id="mg-result-box" class="mg-result-box" style="display: none;">
+        <h3 id="mg-result-text">...</h3>
+        <button id="mg-claim-btn" class="btn-mg-claim">Забрать итог</button>
+        <button id="mg-close-btn" class="btn-mg-close">Выйти</button>
+    </div>
+</div>
+    
+    
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
