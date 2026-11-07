@@ -10,18 +10,15 @@ body, html {
     background-color: #0c0714;
     font-family: sans-serif;
 }
-/* Глобальный запрет выделения текста (чтобы браузер не выделял синим) */
 body {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-    -webkit-touch-callout: none; /* Отключает меню при долгом тапе на iOS */
+    -webkit-touch-callout: none;
 }
-
-/* Специально для экрана мини-игры: запрет скролла и зума */
 .mg-screen {
-    touch-action: none; /* Запрещает жесты зума/скролла браузера */
+    touch-action: none;
     overscroll-behavior: none;
 }
 #app-container, .main-app-screen {
@@ -118,50 +115,43 @@ body {
     width: 20%;
 }
 
-/* ==========================================================================
-   ОБНОВЛЕННЫЕ ПЕСОЧНЫЕ ЧАСЫ (УВЕЛИЧЕННЫЕ С ПОЛНЫМ ОБОРОТОМ)
-   ========================================================================== */
 .spinning-hourglass-wrapper {
-    width: 56px;  /* Увеличили с 44px */
-    height: 56px; /* Увеличили с 44px */
+    width: 56px;
+    height: 56px;
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1); /* Плавный переход для падения на бок */
+    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .icon-hourglass {
-    width: 36px !important; /* Увеличили с 26px */
+    width: 36px !important;
     height: auto !important;
     filter: sepia(0.4) hue-rotate(310deg) drop-shadow(0 2px 5px rgba(0,0,0,0.6));
 }
 
-/* Бесконечная фоновая анимация — теперь делает ПОЛНЫЙ оборот (360 градусов) */
 .spinning-hourglass {
     animation: autoFlipHourglass 120s infinite cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
 
-/* Быстрая анимация (например, при покупке времени) — тоже на 360 градусов */
 .hourglass-fast-spin {
     animation: fastFlip 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* Класс, который будет добавляться через JS по окончании таймера */
 .spinning-hourglass-wrapper.timer-ended {
-    animation: none !important; /* Отключаем вращение */
-    transform: rotate(90deg);   /* Кладем часы на бок */
+    animation: none !important;
+    transform: rotate(90deg);
 }
 
 @keyframes autoFlipHourglass {
     0%, 98% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); } /* Полный оборот вокруг своей оси */
+    100% { transform: rotate(360deg); }
 }
 
 @keyframes fastFlip {
     0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); } /* Полный быстрый оборот */
+    100% { transform: rotate(360deg); }
 }
-
 
 .hud-right-side {
     display: flex;
@@ -294,7 +284,6 @@ body {
     pointer-events: auto !important;
 }
 
-
 .cards-drop-zone .card-container,
 .cards-drop-zone .card-container.closed-choice-card {
     position: relative !important;
@@ -311,12 +300,8 @@ body {
 }
 
 /* ==========================================================================
-   ПОКАЗ ВЫТЯНУТОЙ КАРТЫ ПО ЦЕНТРУ ЭКРАНА
-   ========================================================================== */
-/* ==========================================================================
    ПОКАЗ ВЫТЯНУТОЙ КАРТЫ ПО ЦЕНТРУ ЭКРАНА (ИСПРАВЛЕНО)
    ========================================================================== */
-/* Базовое состояние вылетающей карты */
 .card-zoom-and-fly {
     position: fixed !important;
     left: 50% !important;
@@ -332,19 +317,16 @@ body {
     
     z-index: 999999 !important;
     
-    /* ФИКС: Убираем отсюда transform-style, оставляем только перспективу */
     perspective: 1400px !important; 
     
-     animation: flyInFaceEpic 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
+    animation: flyInFaceEpic 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
 }
 
-/* ФИКС: Внутренний каркас карты, который мы непосредственно крутим в JS */
 .card-zoom-and-fly .card-inner {
     width: 100% !important;
     height: 100% !important;
     position: relative !important;
     transform-style: preserve-3d !important;
-    /* Явно заставляем браузер крутить строго от математического центра */
     transform-origin: center center 0 !important; 
     will-change: transform;
 }
@@ -367,7 +349,6 @@ body {
     transform: translate(-50%, -50%) !important; 
 }
 
-/* Гарантируем, что внутренний каркас жестко сидит в границах родителя */
 .card-zoom-and-fly .card-inner {
     position: absolute !important;
     top: 0 !important;
@@ -380,7 +361,6 @@ body {
     padding: 0 !important;
 }
 
-/* Принудительно выравниваем рубашку и лицо по центру контейнера */
 .card-zoom-and-fly .card-front,
 .card-zoom-and-fly .card-back {
     position: absolute !important;
@@ -389,20 +369,16 @@ body {
     width: 100% !important;
     height: 100% !important;
     margin: 0 !important;
-    /* Убираем любые смещения, которые могли прилететь из флекс-контекста */
     transform-origin: center center !important;
 }
 
-/* ФИКС ТЕКСТУРЫ РУБАШКИ: Проверяем, как рендерится фоновая картинка */
 .card-zoom-and-fly .card-front {
     background-image: url('../assets/deck_texture.png') !important; 
-    background-size: 100% 100% !important; /* Растягиваем строго по размерам синей рамки */
+    background-size: 100% 100% !important;
     background-position: center center !important;
     background-repeat: no-repeat !important;
 }
 
-/* Если внутри .card-front или .card-back есть теги <img>, 
-   они не должны вылезать за пределы скругления углов */
 .card-zoom-and-fly img {
     max-width: 100% !important;
     max-height: 100% !important;
@@ -411,7 +387,6 @@ body {
     top: 0 !important;
     left: 0 !important;
 }
-
 
 /* ==========================================================================
    ИНЛАЙН КНОПКИ ДЕЙСТВИЙ (KEEP / BURN)
@@ -461,6 +436,7 @@ body {
 .btn-inline-keep:active, .btn-inline-burn:active {
     transform: scale(0.95);
 }
+
 .card-zoom-and-fly.settled { animation: none !important; }
 .card-zoom-and-fly.card-burn-animation {
     animation: burnAndAsh 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
@@ -469,26 +445,23 @@ body {
 /* ==========================================================================
    ОФОРМЛЕНИЕ ОКНА АВТОРИЗАЦИИ (ПРЕМИУМ-СТИЛЬ)
    ========================================================================== */
-
-/* Полноэкранный размытый фон */
 .auth-blur-overlay {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
     height: 100dvh !important;
-    background: rgba(12, 7, 20, 0.82) !important; /* Глубокий темный оттенок */
-    backdrop-filter: blur(8px); /* Красивое размытие игрового стола на фоне */
+    background: rgba(12, 7, 20, 0.82) !important;
+    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    z-index: 9999999 !important; /* Поверх абсолютно всего */
-    display: none; /* Управляется через JS (flex) */
+    z-index: 9999999 !important;
+    display: none;
     justify-content: center;
     align-items: center;
     padding: 20px;
     box-sizing: border-box;
 }
 
-/* Карточка авторизации */
 .auth-card-box {
     background: linear-gradient(180deg, #1f0b13 0%, #12050a 100%);
     border: 2px solid #4a1a2b;
@@ -508,7 +481,6 @@ body {
     100% { transform: scale(1); opacity: 1; }
 }
 
-/* Готический заголовок */
 .auth-decor-title {
     display: flex;
     flex-direction: column;
@@ -518,19 +490,17 @@ body {
 }
 
 .auth-icon-hourglass {
-    width: 48px; /* Оптимальная ширина для заголовка */
+    width: 48px;
     height: auto;
     object-fit: contain;
-    /* Накладываем небольшое свечение в цвет песка, убирая drop-shadow от смайлика */
     filter: drop-shadow(0 0 8px rgba(247, 235, 211, 0.35)); 
     animation: authHourglassWave 3s infinite ease-in-out;
 }
 
 @keyframes authHourglassWave {
     0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-4px) rotate(8deg); } /* Чуть уменьшили угол для плавности арта */
+    50% { transform: translateY(-4px) rotate(8deg); }
 }
-
 
 .auth-decor-title h3 {
     margin: 0;
@@ -541,7 +511,6 @@ body {
     text-shadow: 0 0 12px rgba(214, 43, 72, 0.6);
 }
 
-/* Подзаголовок */
 .auth-subtitle {
     font-family: "Montserrat", sans-serif;
     font-size: 0.8rem;
@@ -550,7 +519,6 @@ body {
     line-height: 1.4;
 }
 
-/* Контейнер инпута */
 .auth-input-wrapper {
     text-align: left;
     margin-bottom: 24px;
@@ -567,7 +535,6 @@ body {
     letter-spacing: 0.5px;
 }
 
-/* Поле ввода внутри */
 .input-field-inner {
     display: flex;
     align-items: center;
@@ -609,7 +576,6 @@ body {
     color: #3d242e;
 }
 
-/* Кнопка "Войти" */
 .btn-auth-submit {
     width: 100%;
     height: 44px;
@@ -637,14 +603,13 @@ body {
 
 /* --- Ежедневная награда на песочных часах --- */
 
-/* Свечение и увеличение, когда награда доступна */
 .spinning-hourglass-wrapper.daily-ready {
-    transform: scale(1.15); /* Увеличиваем */
+    transform: scale(1.15);
     animation: dailyPulse 2s infinite ease-in-out;
 }
 
 .spinning-hourglass-wrapper.daily-ready .icon-hourglass {
-    filter: sepia(0.4) hue-rotate(310deg) drop-shadow(0 0 10px #ffb800) brightness(1.3); /* Делаем ярче */
+    filter: sepia(0.4) hue-rotate(310deg) drop-shadow(0 0 10px #ffb800) brightness(1.3);
 }
 
 @keyframes dailyPulse {
@@ -652,12 +617,11 @@ body {
     50% { transform: scale(1.25); }
 }
 
-/* Восклицательный знак */
 .daily-badge {
     position: absolute;
     top: -10px;
     right: -15px;
-    background: #e11d48; /* Красный */
+    background: #e11d48;
     color: white;
     font-weight: 900;
     font-size: 0.9rem;
@@ -677,10 +641,9 @@ body {
     100% { transform: translateY(-5px); }
 }
 
-/* Всплывающий текст с монетами */
 .floating-coins {
     position: absolute;
-    left: -20px; /* С левой стороны */
+    left: -20px;
     top: 50%;
     transform: translateY(-50%);
     color: #ffb800;
@@ -692,7 +655,6 @@ body {
     z-index: 20;
 }
 
-/* Анимация всплытия монет */
 .floating-coins.show {
     animation: floatUp 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
@@ -702,77 +664,5 @@ body {
     20% { opacity: 1; }
     100% { opacity: 0; transform: translateY(-150%) translateX(-10px); }
 }
-
-
-/* Экран мини-игры */
-.mg-screen {
-    position: fixed; inset: 0; background: rgba(6, 3, 10, 0.95);
-    z-index: 9999999; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; backdrop-filter: blur(5px);
-}
-.mg-header {
-    position: absolute; top: 20px; left: 0; width: 100%;
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 0 20px; box-sizing: border-box; z-index: 10;
-}
-.mg-header h2 { color: #f7ebd3; font-family: "Cinzel Decorative", serif; margin: 0; font-size: 1.4rem; text-shadow: 0 0 10px #852538; }
-.mg-timer-box { 
-    background: #2b131d; border: 1px solid #852538; color: #e11d48; 
-    padding: 5px 15px; border-radius: 8px; font-weight: 900; font-size: 1.2rem;
-    box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
-}
-
-/* Фаза запоминания */
-.mg-memorize {
-    text-align: center; color: #e3d2bd; position: absolute; top: 50%; transform: translateY(-50%);
-}
-.mg-memorize p { font-size: 1.2rem; margin-bottom: 15px; font-family: "Montserrat", sans-serif; }
-.mg-big-symbol { 
-    font-size: 6rem; color: #ffb800; text-shadow: 0 0 30px #ffb800, 0 0 60px #e11d48;
-    animation: pulseSymbol 1s infinite alternate;
-}
-@keyframes pulseSymbol { 0% { transform: scale(1); } 100% { transform: scale(1.1); } }
-
-/* Игровое поле */
-.mg-play-area {
-    width: 95%; max-width: 400px; height: 70vh; max-height: 500px;
-    border: 2px dashed #4a1a2b; border-radius: 16px; position: relative;
-    background: rgba(28, 11, 18, 0.5); overflow: hidden; display: flex;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 15px; /* Расстояние между символами */
-    padding: 15px;
-    align-items: center;
-    justify-items: center;
-}
-
-/* Летающие символы */
-.mg-floating-symbol {
-    position: absolute; /* Убираем absolute */
-    font-size: 2.5rem; 
-    color: #a38593;
-    cursor: pointer; 
-    transition: transform 0.1s, opacity 0.1s;
-    text-shadow: 0 0 10px rgba(163, 133, 147, 0.5);
-    user-select: none;
-}
-.mg-floating-symbol:active { transform: scale(1.3); }
-.mg-floating-symbol.correct { color: #ffb800; text-shadow: 0 0 20px #ffb800; }
-.mg-floating-symbol.wrong { color: #e11d48; text-shadow: 0 0 20px #e11d48; }
-
-/* Результат */
-.mg-result-box {
-    position: absolute; background: #1c0b12; border: 2px solid #4a1a2b;
-    padding: 20px; border-radius: 16px; text-align: center; z-index: 20;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-}
-.mg-result-box h3 { color: #f7ebd3; margin-top: 0; }
-.btn-mg-claim, .btn-mg-close {
-    padding: 12px 20px; border-radius: 8px; font-weight: bold; 
-    cursor: pointer; width: 100%; margin-top: 10px; border: none;
-}
-.btn-mg-claim { background: linear-gradient(180deg, #852538 0%, #4a101b 100%); color: #fff; border: 1px solid #b8324b; }
-.btn-mg-close { background: #333; color: #fff; }
-
 
 /* Символы теперь не абсолютно позиционированы, а сидят в ячейках */

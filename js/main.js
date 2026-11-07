@@ -4,7 +4,6 @@ import { renderDeckGrid } from './deck.js';
 import { initPackSystem } from './packs.js';
 import { initMinigame } from './minigame.js';
 
-
 function say(text) {
     if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = text;
 }
@@ -104,7 +103,7 @@ async function finishLogin(data) {
 
     updateUI();
     startCooldownTimer();
-        // Внутри finishLogin, перед setupEventListeners()
+    
     try {
         const res = await apiFetch('/api/minigame/status');
         if (res.ok) {
@@ -230,67 +229,33 @@ function setupEventListeners() {
         setTimeout(() => { DOM.deckScreen.style.display = 'none'; }, 300);
     };
     
-        // --- ЕЖЕДНЕВНАЯ НАГРАДА (Песочные часы) ---
     const dailyBtn = document.getElementById('hourglass-daily-btn');
     const badge = document.getElementById('daily-badge');
     const floatingCoins = document.getElementById('floating-coins');
 
-    // Функция для проверки доступности награды (при входе)
-    async function checkDailyAvailability() {
-        try {
-            // Делаем "фейковый" запрос (или можно просто проверять last_daily_claim)
-            // Самый простой способ — попробовать получить награду. Если 400 — значит рано.
-            const res = await apiFetch('/api/daily-reward', { method: 'POST' });
-            
-            if (res.ok) {
-                // Если запрос успешен — значит награда была доступна. 
-                // Но нам не нужно начислять её при входе, только показать бейджик.
-                // Поэтому, если она начислилась, мы просто обновляем баланс и убираем бейджик.
-                const data = await res.json();
-                playerProfile.points = data.new_points;
-                if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = data.new_points;
-                // Тут мы могли бы показать всплывающие монеты, но лучше по клику.
-            } else {
-                // Если сервер вернул 400 (уже получал), значит награда НЕ доступна.
-                // Покажем бейджик (значит, прошло 24 часа? Нет, наоборот).
-                // Логика: если 400 — значит НЕЛЬЗЯ получить. Если 200 — МОЖНО.
-                // НО! Мы только что вызвали POST, который начислил награду.
-                // Чтобы не начислять её дважды, сделаем проверку проще.
-            }
-        } catch(e) {}
-    }
-
-    // Правильный подход: делаем легкий GET-запрос для проверки (если есть) 
-    // или просто смотрим на время последнего получения, которое пришло в профиле.
-    // В playerProfile есть last_daily_claim.
     function updateDailyBadge() {
         const last = playerProfile?.last_daily_claim;
         const diff = last ? new Date(last).getTime() + 24 * 3600000 - Date.now() : 0;
 
         if (diff <= 0) {
-            // Награда доступна
             dailyBtn.classList.add('daily-ready');
             badge.style.display = 'flex';
         } else {
-            // Награда НЕ доступна
             dailyBtn.classList.remove('daily-ready');
             badge.style.display = 'none';
         }
     }
     
-        // --- ВХОД В МИНИ-ИГРУ (Клик по магическому кругу на столе) ---
-       const magicRing = document.querySelector('.magic-ring-container');
+    const magicRing = document.querySelector('.magic-ring-container');
     if (magicRing) {
         magicRing.onclick = () => {
             if (isDrawing.value || document.querySelector('.card-zoom-and-fly')) return;
             
-            // Если на столе есть карты
             if (DOM.cardsDropZone.querySelector('.card-container')) {
                 if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Сначала выбери карту!";
                 return;
             }
 
-            // Проверяем бейдж
             const badge = document.getElementById('mg-attempts-badge');
             if (badge && badge.textContent.startsWith('0/')) {
                 if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Твои силы на сегодня иссякли. Приходи завтра.";
@@ -301,13 +266,10 @@ function setupEventListeners() {
         };
     }
 
-    // Вызываем при старте
     updateDailyBadge();
 
-    // Обработка клика по часам
     if (dailyBtn) {
         dailyBtn.onclick = async () => {
-            // Если награда недоступна — ничего не делаем
             const last = playerProfile?.last_daily_claim;
             const diff = last ? new Date(last).getTime() + 24 * 3600000 - Date.now() : 0;
             if (diff > 0) {
@@ -319,22 +281,18 @@ function setupEventListeners() {
             const data = await res.json().catch(()=>({}));
             
             if (res.ok) {
-                // Начислили успешно
                 playerProfile.points = data.new_points;
-                playerProfile.last_daily_claim = new Date().toISOString(); // Обновляем локально время
+                playerProfile.last_daily_claim = new Date().toISOString();
                 
                 if (DOM.coinBalanceEl) DOM.coinBalanceEl.textContent = data.new_points;
                 
-                // Анимация монеток
                 floatingCoins.textContent = `+${data.reward} 🪙`;
                 floatingCoins.classList.remove('show');
-                void floatingCoins.offsetWidth; // Трюк для перезапуска
+                void floatingCoins.offsetWidth;
                 floatingCoins.classList.add('show');
 
-                // Обновляем бейджик (он пропадет)
                 updateDailyBadge();
                 
-                // Вибрация
                 import('./config.js').then(m => m.haptic('notificationOccurred', 'success'));
                 
                 if (DOM.speechBubbleEl) DOM.speechBubbleEl.textContent = "Держи свои монеты. Не трать всё сразу!";

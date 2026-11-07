@@ -17,7 +17,6 @@
     pointer-events: none;
 }
 
-/* Контейнер бота (тело + качающаяся рука) */
 .bot-character-container {
     position: absolute !important;
     bottom: 150px !important; 
@@ -52,6 +51,12 @@
     z-index: 3 !important;
     transform-origin: 75% 35%; 
     animation: handWave 4s infinite ease-in-out;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.bot-part-hand:active {
+    transform: scale(0.95) rotate(-5deg);
 }
 
 @keyframes handWave {
@@ -90,16 +95,15 @@
     width: 340px !important;  
     height: 120px !important;
     
-    /* ПОДНИМАЕМ ВЫШЕ ВСЕХ */
     z-index: 100 !important; 
     cursor: pointer;
-    pointer-events: auto !important; /* Принудительно разрешаем клики */
+    pointer-events: auto !important;
     
     background: transparent !important;
 }
 
 /* ==========================================================================
-   ПОЛНОЭКРАННЫЙ ОВЕРЛЕЙ ЗАТЕМНЕНИЯ СЦЕНЫ (ИСПРАВЛЕННЫЙ)
+   ПОЛНОЭКРАННЫЙ ОВЕРЛЕЙ ЗАТЕМНЕНИЯ СЦЕНЫ
    ========================================================================== */
 .scene-dark-overlay {
     position: fixed !important;
@@ -108,9 +112,9 @@
     width: 100% !important;
     height: 100dvh !important;
     background: rgba(6, 3, 10, 0.85) !important;
-    z-index: 999998 !important; /* Строго под вылетающей картой */
+    z-index: 999998 !important;
     opacity: 0 !important;
-    display: block !important; /* Убрали display: none, теперь работает плавная прозрачность */
+    display: block !important;
     pointer-events: none !important;
     transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1) !important;
 }
@@ -163,6 +167,6 @@
     border-radius: 20px;
     z-index: 10;
     box-shadow: 0 0 10px rgba(133, 37, 56, 0.5);
-    pointer-events: none; /* Чтобы бейдж не мешал клику */
+    pointer-events: none;
     text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
