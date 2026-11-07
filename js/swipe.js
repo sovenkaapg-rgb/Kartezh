@@ -7,8 +7,10 @@ export function initSwipeMechanic(cardEl, cardData) {
     let currentX = 0, currentY = 0;
     let dragging = false;
     
-    const activationThreshold = window.innerWidth * 0.25; 
-    const resistanceCoef = 0.75; 
+    // Зона свайпа теперь привязана к ширине КАРТЫ, а не экрана (карта ~220px)
+    // 120px — это чуть больше половины карты, очень легко смахнуть
+    const activationThreshold = 120; 
+    const resistanceCoef = 1.0; // Убрали сопротивление, карта двигается 1 в 1 с пальцем
     let lastHapticTick = 0;
 
     const innerEl = cardEl.querySelector('.card-inner');
@@ -42,14 +44,14 @@ export function initSwipeMechanic(cardEl, cardData) {
         currentX = e.clientX - startX;
         currentY = e.clientY - startY; 
         
-        const dragDistance = currentX * resistanceCoef;
-        let rotateY = (dragDistance / activationThreshold) * 75;
-        rotateY = Math.max(-140, Math.min(140, rotateY)); 
+        // Вращение карты (максимум 180 градусов)
+        let rotateY = (currentX / activationThreshold) * 90;
+        rotateY = Math.max(-180, Math.min(180, rotateY)); 
 
-        cardEl.style.transform = `translate(calc(-50% + ${dragDistance}px), -50%) scale(1.03)`;
+        cardEl.style.transform = `translate(calc(-50% + ${currentX * 0.5}px), -50%) scale(1.03)`;
 
         if (innerEl) {
-            innerEl.style.transform = `rotateY(${rotateY}deg) rotateZ(${(dragDistance / activationThreshold) * 4}deg)`;
+            innerEl.style.transform = `rotateY(${rotateY}deg) rotateZ(${(currentX / activationThreshold) * 4}deg)`;
         }
 
         const currentTick = Math.floor(Math.abs(rotateY) / 15);
@@ -67,16 +69,20 @@ export function initSwipeMechanic(cardEl, cardData) {
         if (innerEl) innerEl.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
         
         const moveDistance = Math.sqrt(currentX * currentX + currentY * currentY);
-        if (moveDistance < 6) {
+        
+        // Если сдвинули меньше 15px — это просто клик, переворачиваем карту
+        if (moveDistance < 15) {
             const randomDirection = Math.random() > 0.5 ? 180 : -180;
             flipAndRevealCard(cardEl, cardData, randomDirection);
             return;
         }
 
-        if (Math.abs(currentX) >= activationThreshold) {
+        // Если сдвинули больше 60% от нужного расстояния — засчитываем свайп
+        if (Math.abs(currentX) >= activationThreshold * 0.6) {
             const finalDirection = currentX > 0 ? 180 : -180;
             flipAndRevealCard(cardEl, cardData, finalDirection);
         } else {
+            // Иначе возвращаем на место
             cardEl.style.transform = 'translate(-50%, -50%) scale(1)';
             if (innerEl) innerEl.style.transform = 'none';
             haptic('notificationOccurred', 'warning');
@@ -108,7 +114,6 @@ function flipAndRevealCard(cardEl, cardData, finalAngle) {
 }
 
 // Создание кнопок "В колоду" и "Сжечь" прямо под картой
-// ФИКС ОШИБКИ: Функция добавлена в экспорт и помечена как async
 export function renderInPlaceActionButtons(cardData, cardEl) {
     if (document.querySelector('.inline-action-buttons')) return;
 
@@ -124,9 +129,7 @@ export function renderInPlaceActionButtons(cardData, cardEl) {
     document.body.appendChild(btnWrapper); 
     setTimeout(() => btnWrapper.classList.add('visible'), 50);
 
-    // ФИКС ОШИБКИ: Анонимная стрелочная функция стала async
     btnWrapper.querySelector('.btn-inline-keep').onclick = async () => {
-
         btnWrapper.classList.remove('visible');
         await apiFetch('/api/confirm-card', { method: 'POST' });
         
@@ -252,7 +255,6 @@ export function openModal(card) {
             let rotateY = (x / (rect.width / 2)) * 12;
             rotateX = Math.max(-12, Math.min(12, rotateX));
             rotateY = Math.max(-12, Math.min(12, rotateY));
-            // Продолжение функции updateTilt внутри openModal
             tiltCard.style.transform = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
             ticking = false;
         };

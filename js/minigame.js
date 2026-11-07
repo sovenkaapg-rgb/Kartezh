@@ -153,7 +153,7 @@ export function initMinigame() {
         setTimeout(() => el.remove(), 300);
     }
 
-        function endGame() {
+    function endGame() {
         clearInterval(gameInterval);
         clearInterval(spawnInterval);
         
@@ -165,12 +165,10 @@ export function initMinigame() {
         const isWin = correctClicks > wrongClicks;
         
         if (isWin) {
-            const reward = correctClicks * 3; 
-            resultText.textContent = `Ты победил! Попаданий: ${correctClicks}. Награда: +${reward} 🪙`;
+            resultText.textContent = `Ты победил! Попаданий: ${correctClicks}. Таймер кулдауна сокращен на 30 минут.`;
             resultText.style.color = "#ffb800";
         } else {
-            const penalty = wrongClicks * 10;
-            resultText.textContent = `Проклятие! Промахов: ${wrongClicks}. Таймер основного кулдауна продлен на ${penalty} минут.`;
+            resultText.textContent = `Проклятие! Промахов: ${wrongClicks}. Таймер кулдауна продлен на 30 минут.`;
             resultText.style.color = "#e11d48";
         }
         
